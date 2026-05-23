@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>¿Quién es Quién? Pokémon</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="theme-color" content="#E3350D">
+<meta name="apple-mobile-web-app-title" content="PokéQuién">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --pk-red:#E3350D;--pk-yellow:#FFD700;--pk-blue:#3B5BA7;
+  --pk-white:#FAFAFA;--pk-black:#1A1A2E;--pk-gray:#E8E8F0;--pk-gray2:#C8C8D8;
+  --pk-green:#27AE60;--pk-shadow:0 4px 0 rgba(0,0,0,0.18);
+  --pk-radius:16px;--pk-radius-sm:10px;
+  --fnt:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+}
+html,body{height:100%;width:100%;overflow-x:hidden;}
+body{font-family:var(--fnt);background:#1A1A2E;min-height:100dvh;}
+#app{padding:0.75rem;max-width:480px;margin:0 auto;}
+.screen{display:none;}.screen.active{display:block;}
+
+/* ── BUTTONS ── */
+.pk-btn{display:block;width:100%;padding:14px;font-family:var(--fnt);font-size:16px;font-weight:800;border:none;border-radius:var(--pk-radius-sm);cursor:pointer;letter-spacing:0.03em;transition:transform 0.1s,filter 0.1s;box-shadow:var(--pk-shadow);text-align:center;-webkit-tap-highlight-color:transparent;}
+.pk-btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.18);}
+.pk-btn-red{background:var(--pk-red);color:#fff;}
+.pk-btn-blue{background:var(--pk-blue);color:#fff;}
+.pk-btn-green{background:var(--pk-green);color:#fff;}
+.pk-btn-dark{background:#2a2a4a;color:#fff;border:2px solid #3a3a6a;}
+.pk-btn-yellow{background:var(--pk-yellow);color:var(--pk-black);}
+.pk-btn:disabled{background:var(--pk-gray2);color:#aaa;box-shadow:none;cursor:not-allowed;transform:none;}
+.back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;font-family:var(--fnt);font-size:13px;font-weight:800;color:rgba(255,255,255,0.6);cursor:pointer;padding:0 0 14px;-webkit-tap-highlight-color:transparent;}
+
+/* ── MAIN MENU ── */
+.menu-wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;}
+.menu-pokeball{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:linear-gradient(180deg,var(--pk-red) 50%,#fff 50%);position:relative;margin:0 auto 16px;box-shadow:0 6px 0 rgba(0,0,0,0.3);animation:float 3s ease-in-out infinite;}
+.menu-pokeball::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:4px;background:var(--pk-black);}
+.menu-pokeball::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--pk-black);z-index:2;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.menu-title{font-size:30px;font-weight:900;color:#fff;text-align:center;line-height:1;text-shadow:0 3px 0 rgba(0,0,0,0.3);}
+.menu-title span{color:var(--pk-yellow);}
+.menu-sub{font-size:12px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:0.14em;text-transform:uppercase;margin-top:6px;text-align:center;}
+.menu-logo-wrap{margin-bottom:2.5rem;}
+.menu-btns{width:100%;max-width:280px;display:flex;flex-direction:column;gap:12px;}
+.menu-btn{display:flex;align-items:center;justify-content:center;gap:12px;padding:18px 24px;font-family:var(--fnt);font-size:18px;font-weight:900;border:none;border-radius:var(--pk-radius);cursor:pointer;box-shadow:var(--pk-shadow);-webkit-tap-highlight-color:transparent;transition:transform 0.1s,filter 0.1s;letter-spacing:0.02em;}
+.menu-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,0.18);}
+.menu-btn-play{background:var(--pk-red);color:#fff;}
+.menu-btn-online{background:linear-gradient(135deg,#1a6b8a,#0d4d6b);color:#fff;border:2px solid #2a9bc4;}
+.menu-btn-dex{background:#2a3a6a;color:var(--pk-yellow);border:2px solid #3a5aaa;}
+.menu-dex-count{font-size:11px;font-weight:700;color:rgba(255,220,0,0.6);margin-top:2px;}
+
+/* ── ONLINE LOBBY ── */
+.online-wrap{background:var(--pk-white);border-radius:var(--pk-radius);overflow:hidden;box-shadow:0 6px 0 rgba(0,0,0,0.2);}
+.online-header{background:linear-gradient(135deg,#1a6b8a,#0d4d6b);padding:20px 16px;text-align:center;}
+.online-header-title{font-size:18px;font-weight:900;color:#fff;margin-bottom:4px;}
+.online-header-sub{font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);}
+.online-body{padding:20px 16px;display:flex;flex-direction:column;gap:12px;}
+.online-section-label{font-size:11px;font-weight:900;color:var(--pk-gray2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
+.room-code-display{
+  font-size:48px;font-weight:900;letter-spacing:16px;color:var(--pk-black);
+  text-align:center;padding:20px;background:var(--pk-gray);
+  border-radius:var(--pk-radius-sm);border:2px solid var(--pk-gray2);
+  font-family:monospace;
+}
+.room-code-input{
+  width:100%;padding:16px;font-family:monospace;font-size:32px;font-weight:900;
+  letter-spacing:12px;text-align:center;text-transform:uppercase;
+  border:2.5px solid var(--pk-gray2);border-radius:var(--pk-radius-sm);
+  background:var(--pk-gray);color:var(--pk-black);outline:none;
+  -webkit-appearance:none;
+}
+.room-code-input:focus{border-color:var(--pk-blue);}
+.online-divider{height:1px;background:var(--pk-gray2);margin:4px 0;}
+.online-or{text-align:center;font-size:12px;font-weight:800;color:var(--pk-gray2);margin:-4px 0;}
+.waiting-wrap{text-align:center;padding:2rem 1rem;}
+.waiting-spinner{width:48px;height:48px;border-radius:50%;border:4px solid var(--pk-gray2);border-top-color:#1a6b8a;animation:spin 0.8s linear infinite;margin:0 auto 1rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.waiting-code{font-size:14px;font-weight:800;color:var(--pk-black);margin-bottom:6px;}
+.waiting-code span{font-size:28px;font-weight:900;letter-spacing:8px;color:#1a6b8a;font-family:monospace;display:block;margin-top:4px;}
+.waiting-sub{font-size:12px;font-weight:700;color:var(--pk-gray2);}
+.online-status-bar{
+  background:var(--pk-black);padding:8px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.online-status-pill{font-size:11px;font-weight:900;padding:4px 10px;border-radius:20px;background:#1a6b8a;color:#fff;}
+.online-ping{font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#27AE60;display:inline-block;margin-right:4px;animation:blink 2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* ── DIFFICULTY ── */
+.diff-header{background:var(--pk-black);border-radius:var(--pk-radius) var(--pk-radius) 0 0;padding:16px 1rem 14px;text-align:center;}
+.diff-header-title{font-size:15px;font-weight:900;color:var(--pk-yellow);letter-spacing:0.05em;text-transform:uppercase;}
+.diff-header-sub{font-size:12px;font-weight:700;color:rgba(255,255,255,0.45);margin-top:3px;}
+.diff-body{background:var(--pk-white);border:2.5px solid var(--pk-black);border-top:none;border-radius:0 0 var(--pk-radius) var(--pk-radius);padding:16px 14px;margin-bottom:12px;}
+.diff-card{background:var(--pk-gray);border:2.5px solid var(--pk-gray2);border-radius:var(--pk-radius-sm);padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s,background 0.15s;-webkit-tap-highlight-color:transparent;}
+.diff-card:last-of-type{margin-bottom:0;}
+.diff-card.selected{border-color:var(--pk-blue);background:#D0D8F0;}
+.diff-card-top{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.diff-icon{font-size:24px;}
+.diff-name{font-size:15px;font-weight:900;color:var(--pk-black);}
+.diff-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:auto;}
+.diff-easy{background:#d0f0d8;color:#1a6b2a;}
+.diff-med{background:#fef0c0;color:#7a5000;}
+.diff-hard{background:#fde0d0;color:#8a2000;}
+.diff-desc{font-size:12px;font-weight:700;color:#666;line-height:1.5;}
+.filter-wrap{margin-top:10px;}
+.filter-label{font-size:11px;font-weight:800;color:var(--pk-black);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:8px;}
+.type-filter-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+.type-chip{padding:5px 10px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;border:2px solid transparent;opacity:0.55;transition:opacity 0.15s,border-color 0.15s;-webkit-tap-highlight-color:transparent;}
+.type-chip.active{opacity:1;border-color:rgba(0,0,0,0.5);}
+.gen-filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px;}
+.gen-chip{padding:8px 4px;border-radius:8px;font-size:12px;font-weight:800;text-align:center;cursor:pointer;border:2px solid transparent;background:var(--pk-gray2);color:var(--pk-black);opacity:0.6;transition:opacity 0.15s,border-color 0.15s;-webkit-tap-highlight-color:transparent;}
+.gen-chip.active{opacity:1;border-color:var(--pk-blue);background:#D0D8F0;}
+.player-block{margin-bottom:14px;}
+.player-tag{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;color:var(--pk-black);margin-bottom:7px;letter-spacing:0.04em;text-transform:uppercase;}
+.tag-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;}
+.dot-1{background:var(--pk-blue);}.dot-2{background:var(--pk-red);}
+input[type=text]{width:100%;padding:11px 14px;font-family:var(--fnt);font-size:15px;font-weight:700;border:2.5px solid var(--pk-gray2);border-radius:var(--pk-radius-sm);background:var(--pk-gray);color:var(--pk-black);outline:none;transition:border-color 0.15s;-webkit-appearance:none;}
+input[type=text]:focus{border-color:var(--pk-blue);}
+.divider{height:2px;background:var(--pk-gray2);border-radius:2px;margin:1rem 0;}
+.error-msg{font-size:13px;font-weight:700;color:var(--pk-red);text-align:center;margin-top:10px;}
+
+/* ── LOADING ── */
+.loading-wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;}
+.pk-spinner{width:64px;height:64px;border-radius:50%;border:5px solid rgba(255,255,255,0.15);border-top-color:var(--pk-red);border-right-color:var(--pk-red);animation:spin 0.7s linear infinite;margin:0 auto 1.25rem;}
+.loading-title{font-size:20px;font-weight:900;color:#fff;margin-bottom:8px;}
+.loading-sub{font-size:14px;font-weight:700;color:rgba(255,255,255,0.4);}
+
+/* ── SELECTION ── */
+.sel-header{background:var(--pk-black);border-radius:var(--pk-radius) var(--pk-radius) 0 0;padding:14px 1rem 12px;text-align:center;}
+.sel-header-title{font-size:14px;font-weight:900;color:var(--pk-yellow);letter-spacing:0.05em;text-transform:uppercase;}
+.sel-header-sub{font-size:11px;font-weight:700;color:rgba(255,255,255,0.45);margin-top:3px;}
+.sel-body{background:var(--pk-white);border:2.5px solid var(--pk-black);border-top:none;border-radius:0 0 var(--pk-radius) var(--pk-radius);padding:12px 10px;margin-bottom:10px;}
+.pokemon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.poke-card{background:var(--pk-gray);border:2px solid var(--pk-gray2);border-radius:var(--pk-radius-sm);padding:6px 3px 5px;cursor:pointer;text-align:center;transition:border-color 0.12s,transform 0.12s,background 0.12s;position:relative;-webkit-tap-highlight-color:transparent;}
+.poke-card:active{transform:scale(0.96);}
+.poke-card.selected{border:2.5px solid var(--pk-blue);background:#D0D8F0;}
+.poke-card.selected::after{content:'✓';position:absolute;top:3px;right:5px;font-size:10px;font-weight:900;color:var(--pk-blue);}
+.poke-card.shiny-card{border-color:#FFD700;background:linear-gradient(135deg,#fffbe0,#fff3a0);}
+.poke-sprite{width:52px;height:52px;image-rendering:pixelated;}
+.poke-name{font-size:9px;font-weight:800;color:var(--pk-black);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.type-icons{display:flex;justify-content:center;gap:3px;margin-top:3px;flex-wrap:wrap;}
+.type-badge-colored{display:inline-flex;align-items:center;padding:2px 5px;border-radius:20px;font-size:7.5px;font-weight:900;}
+
+/* ── GAME ── */
+.game-wrap{background:var(--pk-gray);border:2.5px solid var(--pk-black);border-radius:var(--pk-radius);overflow:hidden;}
+.game-topbar{background:var(--pk-black);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;}
+.turn-pill{font-size:11px;font-weight:900;padding:5px 12px;border-radius:20px;letter-spacing:0.04em;text-transform:uppercase;}
+.turn-pill-p1{background:var(--pk-blue);color:var(--pk-yellow);}
+.turn-pill-p2{background:var(--pk-red);color:var(--pk-yellow);}
+.turn-pill-wait{background:#555;color:#aaa;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.remaining-tag{font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);}
+.remaining-num{color:var(--pk-yellow);}
+.settings-btn{background:none;border:none;cursor:pointer;font-size:20px;padding:0;-webkit-tap-highlight-color:transparent;}
+.board-section{background:var(--pk-white);padding:10px 7px 8px;border-bottom:2px solid var(--pk-gray2);}
+.section-label{font-size:9.5px;font-weight:900;color:var(--pk-gray2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;text-align:center;}
+.board-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+
+/* CARD FLIP */
+.card-wrapper{perspective:500px;min-height:70px;}
+.card-inner{position:relative;width:100%;height:100%;min-height:70px;transform-style:preserve-3d;transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);}
+.card-wrapper.flipped .card-inner{transform:rotateY(180deg);}
+.card-front,.card-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px;text-align:center;}
+.card-front{background:var(--pk-gray);border:2px solid var(--pk-gray2);cursor:pointer;}
+.card-front.shiny-front{background:linear-gradient(135deg,#fffbe0,#fff3a0);border-color:#FFD700;}
+.card-back{transform:rotateY(180deg);cursor:pointer;background:#fff;border:2px solid var(--pk-gray2);}
+.board-sprite{width:36px;height:36px;image-rendering:pixelated;}
+.board-name{font-size:7px;font-weight:800;color:var(--pk-black);margin-top:1px;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px;}
+.shiny-star{font-size:8px;position:absolute;top:1px;left:2px;}
+.pb-svg-wrap{width:36px;height:36px;flex-shrink:0;}
+.pb-card-name{font-size:6px;font-weight:900;color:#555;margin-top:2px;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px;}
+
+/* SÍ/NO */
+.yn-area{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;}
+.yn-label{font-size:10px;font-weight:900;color:var(--pk-gray2);letter-spacing:0.08em;text-transform:uppercase;text-align:center;}
+.yn-instruction{font-size:12px;font-weight:800;color:var(--pk-black);text-align:center;padding:8px 10px;background:var(--pk-white);border-radius:8px;border:2px solid var(--pk-gray2);line-height:1.5;}
+.yn-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.yn-btn{padding:14px 0;font-family:var(--fnt);font-size:18px;font-weight:900;border:none;border-radius:var(--pk-radius-sm);cursor:pointer;box-shadow:var(--pk-shadow);transition:transform 0.1s;-webkit-tap-highlight-color:transparent;}
+.yn-btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.18);}
+.yn-no{background:#C8C8D8;color:var(--pk-black);}
+.yn-yes{background:var(--pk-green);color:#fff;}
+.yn-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.guess-area{padding:6px 10px 12px;}
+.guess-divider{height:2px;background:var(--pk-gray2);border-radius:2px;margin-bottom:10px;}
+
+/* Online chat / action log */
+.action-log{background:var(--pk-black);padding:8px 12px;max-height:60px;overflow-y:auto;border-top:2px solid #2a2a4a;}
+.action-entry{font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);line-height:1.6;}
+.action-entry span{color:var(--pk-yellow);}
+
+/* ── MODAL ── */
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(10,10,30,0.82);align-items:center;justify-content:center;z-index:100;padding:1rem;}
+.modal-wrap.visible{display:flex;}
+.modal{background:var(--pk-white);border:3px solid var(--pk-black);border-radius:var(--pk-radius);padding:1.5rem;width:100%;max-width:340px;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,0.3);animation:popIn 0.15s ease-out;}
+@keyframes popIn{from{transform:scale(0.88);opacity:0;}to{transform:scale(1);opacity:1;}}
+.modal-icon{font-size:32px;margin-bottom:10px;}
+.modal h3{font-size:16px;font-weight:900;color:var(--pk-black);margin-bottom:8px;}
+.modal p{font-size:13px;font-weight:700;color:#666;margin-bottom:14px;line-height:1.5;}
+.modal-btns{display:flex;gap:10px;}
+.m-btn{flex:1;padding:12px;font-family:var(--fnt);font-size:14px;font-weight:900;border:none;border-radius:10px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent;}
+.m-btn:active{transform:translateY(2px);}
+.m-no{background:var(--pk-gray2);color:var(--pk-black);}
+.m-yes{background:var(--pk-blue);color:#fff;}
+.m-guess{background:var(--pk-green);color:#fff;}
+.guess-scroll{max-height:42vh;overflow-y:auto;margin-bottom:12px;-webkit-overflow-scrolling:touch;}
+.guess-scroll .pokemon-grid{gap:6px;}
+.guess-scroll .poke-card.selected{border-color:var(--pk-green);background:#d0f0e0;}
+
+/* SHINY MODAL */
+.shiny-modal{background:linear-gradient(135deg,#1a1a3e,#2a1a4e)!important;border-color:#FFD700!important;}
+.shiny-modal h3{color:var(--pk-yellow)!important;}
+.shiny-modal p{color:rgba(255,255,255,0.7)!important;}
+.shiny-sprite-wrap{position:relative;display:inline-block;margin:8px auto 14px;}
+.shiny-aura{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(255,215,0,0.5),transparent 70%);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.8;}50%{transform:translate(-50%,-50%) scale(1.3);opacity:0.3;}}
+.shiny-big-sprite{width:80px;height:80px;image-rendering:pixelated;position:relative;z-index:1;}
+
+/* SETTINGS */
+.settings-modal{max-width:300px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1.5px solid var(--pk-gray);}
+.settings-row:last-of-type{border-bottom:none;}
+.settings-label{font-size:14px;font-weight:800;color:var(--pk-black);}
+.settings-sublabel{font-size:10px;font-weight:700;color:var(--pk-gray2);}
+input[type=range]{-webkit-appearance:none;width:120px;height:8px;border-radius:4px;background:var(--pk-gray2);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--pk-blue);cursor:pointer;border:2.5px solid var(--pk-black);}
+
+/* ── POKÉDEX ── */
+.dex-header{background:var(--pk-red);padding:16px 14px 14px;border-radius:var(--pk-radius) var(--pk-radius) 0 0;display:flex;align-items:center;justify-content:space-between;}
+.dex-title{font-size:20px;font-weight:900;color:#fff;}
+.dex-count-badge{background:rgba(0,0,0,0.25);color:#fff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:20px;}
+.dex-body{background:var(--pk-white);border:2.5px solid var(--pk-black);border-top:none;border-radius:0 0 var(--pk-radius) var(--pk-radius);padding:12px 10px;min-height:300px;}
+.dex-filter-bar{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.dex-filter-bar::-webkit-scrollbar{display:none;}
+.dex-filter-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;font-family:var(--fnt);font-size:12px;font-weight:800;border:2px solid var(--pk-gray2);background:var(--pk-gray);color:var(--pk-black);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.dex-filter-btn.active{background:var(--pk-red);color:#fff;border-color:var(--pk-red);}
+.dex-empty{text-align:center;padding:3rem 1rem;color:var(--pk-gray2);}
+.dex-empty-icon{font-size:48px;margin-bottom:12px;}
+.dex-empty-text{font-size:14px;font-weight:800;}
+.dex-empty-sub{font-size:12px;font-weight:700;margin-top:6px;}
+.dex-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.dex-card{background:var(--pk-gray);border:2px solid var(--pk-gray2);border-radius:10px;padding:8px 4px 6px;text-align:center;position:relative;}
+.dex-card.shiny-dex{background:linear-gradient(135deg,#fffbe0,#fff3a0);border-color:#FFD700;}
+.dex-sprite{width:52px;height:52px;image-rendering:pixelated;}
+.dex-name{font-size:8.5px;font-weight:800;color:var(--pk-black);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dex-num{font-size:8px;font-weight:700;color:var(--pk-gray2);}
+.dex-shiny-star{position:absolute;top:3px;right:4px;font-size:10px;}
+
+/* ── END ── */
+.end-wrap{background:var(--pk-black);border-radius:var(--pk-radius);padding:2.5rem 1.5rem;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,0.3);}
+.end-stars{font-size:26px;letter-spacing:6px;margin-bottom:14px;}
+.end-title{font-size:28px;font-weight:900;color:var(--pk-yellow);margin-bottom:8px;}
+.end-player{font-size:15px;font-weight:800;color:#fff;margin-bottom:18px;}
+.end-secret-label{font-size:12px;font-weight:800;color:rgba(255,255,255,0.45);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;}
+.end-poke-card{background:var(--pk-white);border-radius:var(--pk-radius-sm);padding:16px;display:inline-block;margin:0 auto 22px;}
+.end-poke-card.shiny-end{background:linear-gradient(135deg,#fffbe0,#fff3a0);border:2px solid #FFD700;}
+.end-sprite{width:96px;height:96px;image-rendering:pixelated;}
+.end-poke-name{font-size:16px;font-weight:900;color:var(--pk-black);margin-top:6px;}
+.end-btns{display:flex;flex-direction:column;gap:10px;align-items:center;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ MAIN MENU ══ -->
+<div id="menu-screen" class="screen active">
+  <div class="menu-wrap">
+    <div class="menu-logo-wrap">
+      <div class="menu-pokeball"></div>
+      <div class="menu-title">¿Quién es <span>Quién?</span></div>
+      <div class="menu-sub">Edición Pokémon</div>
+    </div>
+    <div class="menu-btns">
+      <button class="menu-btn menu-btn-play" onclick="goToDifficulty()">🎮 JUGAR LOCAL</button>
+      <button class="menu-btn menu-btn-online" onclick="show('online-screen')">🌐 JUGAR ONLINE</button>
+      <button class="menu-btn menu-btn-dex" onclick="openPokedex()">
+        <div>
+          <div>📖 POKÉDEX</div>
+          <div class="menu-dex-count" id="menu-dex-count">0 / 1025 descubiertos</div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ONLINE LOBBY ══ -->
+<div id="online-screen" class="screen">
+  <button class="back-btn" onclick="leaveOnline()">← Volver</button>
+  <div class="online-wrap">
+    <div class="online-header">
+      <div class="online-header-title">🌐 Modo Online</div>
+      <div class="online-header-sub">Juega con un amigo a distancia</div>
+    </div>
+    <div class="online-body" id="online-body">
+      <!-- Tu nombre -->
+      <div>
+        <div class="online-section-label">Tu nombre</div>
+        <input type="text" id="online-name" placeholder="¿Cómo te llamas?" maxlength="14" value="Ash">
+      </div>
+      <div class="online-divider"></div>
+      <div class="online-or">¿Qué quieres hacer?</div>
+      <div class="online-divider"></div>
+      <!-- Crear sala -->
+      <div>
+        <div class="online-section-label">Crear sala nueva</div>
+        <button class="pk-btn pk-btn-blue" onclick="createRoom()">Crear sala y obtener código</button>
+      </div>
+      <div class="online-or">— o —</div>
+      <!-- Unirse -->
+      <div>
+        <div class="online-section-label">Unirse a una sala</div>
+        <input type="text" id="join-code" class="room-code-input" placeholder="ABCD" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+        <div style="height:10px;"></div>
+        <button class="pk-btn pk-btn-green" onclick="joinRoom()">Unirse a la sala</button>
+      </div>
+      <div id="online-error" class="error-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WAITING ROOM ══ -->
+<div id="waiting-screen" class="screen">
+  <button class="back-btn" onclick="leaveOnline()">← Cancelar</button>
+  <div class="online-wrap">
+    <div class="online-header">
+      <div class="online-header-title">Sala creada</div>
+      <div class="online-header-sub">Comparte el código con tu rival</div>
+    </div>
+    <div class="waiting-wrap">
+      <div class="waiting-code">Código de sala:<span id="room-code-display">----</span></div>
+      <div class="waiting-spinner"></div>
+      <div class="waiting-sub">Esperando a que tu rival se conecte…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DIFFICULTY ══ -->
+<div id="difficulty-screen" class="screen">
+  <button class="back-btn" id="diff-back-btn" onclick="goToDiffBack()">← Volver</button>
+  <div class="diff-header">
+    <div class="diff-header-title">Selecciona dificultad</div>
+    <div class="diff-header-sub" id="diff-mode-label">¿Cómo se elegirán los Pokémon?</div>
+  </div>
+  <div class="diff-body">
+    <div class="diff-card" id="diff-normal" onclick="selectDiff('normal')">
+      <div class="diff-card-top"><span class="diff-icon">🌍</span><span class="diff-name">Todos los Pokémon</span><span class="diff-badge diff-easy">Fácil</span></div>
+      <div class="diff-desc">20 Pokémon aleatorios de los 1025 disponibles.</div>
+    </div>
+    <div class="diff-card" id="diff-type" onclick="selectDiff('type')">
+      <div class="diff-card-top"><span class="diff-icon">🔥</span><span class="diff-name">Por tipo</span><span class="diff-badge diff-med">Medio</span></div>
+      <div class="diff-desc">Todos los Pokémon comparten al menos un tipo.</div>
+      <div class="filter-wrap" id="type-filter-wrap" style="display:none;" onclick="event.stopPropagation()">
+        <div class="divider"></div>
+        <div class="filter-label">Elige el tipo:</div>
+        <div class="type-filter-grid" id="type-filter-grid"></div>
+      </div>
+    </div>
+    <div class="diff-card" id="diff-gen" onclick="selectDiff('gen')">
+      <div class="diff-card-top"><span class="diff-icon">📅</span><span class="diff-name">Por generación</span><span class="diff-badge diff-hard">Difícil</span></div>
+      <div class="diff-desc">Solo Pokémon de la generación que elijas.</div>
+      <div class="filter-wrap" id="gen-filter-wrap" style="display:none;" onclick="event.stopPropagation()">
+        <div class="divider"></div>
+        <div class="filter-label">Elige la generación:</div>
+        <div class="gen-filter-grid" id="gen-filter-grid"></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <!-- Local player names (hidden in online mode) -->
+    <div id="local-names-block">
+      <div class="player-block">
+        <div class="player-tag"><span class="tag-dot dot-1">1</span>Jugador 1</div>
+        <input type="text" id="p1-name" placeholder="Nombre…" maxlength="14" value="Ash">
+      </div>
+      <div class="player-block">
+        <div class="player-tag"><span class="tag-dot dot-2">2</span>Jugador 2</div>
+        <input type="text" id="p2-name" placeholder="Nombre…" maxlength="14" value="Misty">
+      </div>
+    </div>
+  </div>
+  <button class="pk-btn pk-btn-red" id="start-btn" onclick="startGame()" disabled>¡Comenzar partida!</button>
+  <div id="setup-error" class="error-msg"></div>
+</div>
+
+<!-- ══ LOADING ══ -->
+<div id="loading-screen" class="screen">
+  <div class="loading-wrap">
+    <div class="pk-spinner"></div>
+    <div class="loading-title">Cargando Pokémon…</div>
+    <div class="loading-sub" id="loading-text">Explorando la Pokédex…</div>
+  </div>
+</div>
+
+<!-- ══ SELECTION ══ -->
+<div id="selection-screen" class="screen">
+  <div class="sel-header">
+    <div class="sel-header-title" id="sel-player-name">Elige tu Pokémon secreto</div>
+    <div class="sel-header-sub">¡Que el rival no vea!</div>
+  </div>
+  <div class="sel-body">
+    <div class="pokemon-grid" id="sel-grid"></div>
+  </div>
+  <button class="pk-btn pk-btn-blue" id="confirm-sel" onclick="confirmSelection()" disabled>Confirmar elección</button>
+</div>
+
+<!-- ══ GAME ══ -->
+<div id="game-screen" class="screen">
+  <div class="game-wrap">
+    <div class="game-topbar">
+      <div id="turn-badge" class="turn-pill turn-pill-p1">Turno</div>
+      <div class="topbar-right">
+        <div class="remaining-tag">Quedan: <span class="remaining-num" id="remaining-count">20</span></div>
+        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+      </div>
+    </div>
+    <!-- Online status bar (only visible in online mode) -->
+    <div class="online-status-bar" id="online-status-bar" style="display:none;">
+      <div class="online-status-pill"><span class="conn-dot"></span>Online</div>
+      <div class="online-ping" id="online-rival-name">Rival conectado</div>
+    </div>
+    <div class="board-section">
+      <div class="section-label">Toca para descartar · toca de nuevo para restaurar</div>
+      <div class="board-grid" id="board-grid"></div>
+    </div>
+    <div class="yn-area">
+      <div class="yn-label">Respuesta del rival</div>
+      <div class="yn-instruction" id="yn-instruction">Haz tu pregunta en voz alta</div>
+      <div class="yn-btns">
+        <button class="yn-btn yn-no" id="yn-no-btn" onclick="endTurn()">✕ No</button>
+        <button class="yn-btn yn-yes" id="yn-yes-btn" onclick="endTurn()">✓ Sí</button>
+      </div>
+    </div>
+    <!-- Online action log -->
+    <div class="action-log" id="action-log" style="display:none;"></div>
+    <div class="guess-area">
+      <div class="guess-divider"></div>
+      <button class="pk-btn pk-btn-green" id="guess-btn" onclick="openGuessModal()">¡Adivinar Pokémon!</button>
+    </div>
+  </div>
+
+  <div class="modal-wrap" id="guess-modal">
+    <div class="modal">
+      <div class="modal-icon">🔍</div>
+      <h3 id="gm-title">¿Cuál es el Pokémon?</h3>
+      <p id="gm-sub"></p>
+      <div class="guess-scroll"><div class="pokemon-grid" id="gm-grid"></div></div>
+      <div class="modal-btns">
+        <button class="m-btn m-no" onclick="closeGuessModal()">Cancelar</button>
+        <button class="m-btn m-guess" id="gm-confirm" onclick="confirmGuess()" disabled>Adivinar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-wrap" id="wrong-modal">
+    <div class="modal">
+      <div class="modal-icon">😓</div>
+      <h3>¡Incorrecto!</h3>
+      <p id="wrong-body">No era ese Pokémon.</p>
+      <div class="modal-btns">
+        <button class="m-btn m-yes" onclick="closeWrongModal()">Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-wrap" id="shiny-modal">
+    <div class="modal shiny-modal">
+      <div class="modal-icon">✨</div>
+      <div class="shiny-sprite-wrap">
+        <div class="shiny-aura"></div>
+        <img id="shiny-modal-sprite" class="shiny-big-sprite" src="" alt="">
+      </div>
+      <h3 id="shiny-modal-name">¡Pokémon Shiny!</h3>
+      <p>Un Pokémon shiny ha aparecido en el tablero… ¡Es increíblemente raro!</p>
+      <div class="modal-btns">
+        <button class="m-btn m-yes" onclick="closeShinyModal()">¡Increíble!</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-wrap" id="rival-disconnected-modal">
+    <div class="modal">
+      <div class="modal-icon">📡</div>
+      <h3>Rival desconectado</h3>
+      <p>Tu rival ha perdido la conexión.</p>
+      <div class="modal-btns">
+        <button class="m-btn m-no" onclick="leaveOnline()">Salir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="modal-wrap" id="settings-modal">
+  <div class="modal settings-modal">
+    <div class="modal-icon">⚙️</div>
+    <h3>Opciones</h3>
+    <div class="settings-row">
+      <div><div class="settings-label">🎵 Música</div><div class="settings-sublabel">Centro Pokémon</div></div>
+      <input type="range" id="vol-music" min="0" max="100" value="40" oninput="setMusicVol(this.value)">
+    </div>
+    <div class="settings-row">
+      <div><div class="settings-label">🔊 Efectos</div><div class="settings-sublabel">Cartas, acierto…</div></div>
+      <input type="range" id="vol-sfx" min="0" max="100" value="80" oninput="setSfxVol(this.value)">
+    </div>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="m-btn m-no" onclick="closeSettings()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ POKÉDEX ══ -->
+<div id="pokedex-screen" class="screen">
+  <button class="back-btn" onclick="show('menu-screen');updateMenuDexCount()">← Volver</button>
+  <div class="dex-header">
+    <div class="dex-title">📖 Pokédex</div>
+    <div class="dex-count-badge" id="dex-count-badge">0 / 1025</div>
+  </div>
+  <div class="dex-body">
+    <div class="dex-filter-bar">
+      <button class="dex-filter-btn active" onclick="setDexFilter('all',this)">Todos</button>
+      <button class="dex-filter-btn" onclick="setDexFilter('shiny',this)">✨ Shiny</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(1,this)">Gen I</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(2,this)">Gen II</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(3,this)">Gen III</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(4,this)">Gen IV</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(5,this)">Gen V</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(6,this)">Gen VI</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(7,this)">Gen VII</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(8,this)">Gen VIII</button>
+      <button class="dex-filter-btn" onclick="setDexFilter(9,this)">Gen IX</button>
+    </div>
+    <div id="dex-grid-wrap"></div>
+  </div>
+</div>
+
+<!-- ══ END ══ -->
+<div id="end-screen" class="screen">
+  <div class="end-wrap">
+    <div class="end-stars">★ ★ ★</div>
+    <div class="end-title" id="end-title">¡Victoria!</div>
+    <div class="end-player" id="end-player"></div>
+    <div class="end-secret-label">El Pokémon secreto era</div>
+    <div class="end-poke-card" id="end-poke-card">
+      <img id="end-sprite" class="end-sprite" src="" alt="">
+      <div class="end-poke-name" id="end-poke-name"></div>
+    </div>
+    <div class="end-btns">
+      <button class="pk-btn pk-btn-red" style="width:auto;padding:13px 32px;" onclick="onEndPlayAgain()">Jugar de nuevo</button>
+      <button class="pk-btn pk-btn-dark" style="width:auto;padding:11px 24px;" onclick="show('menu-screen');updateMenuDexCount()">Menú principal</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue, off, remove, onDisconnect }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDby9_jVFOkslqYkp2I1hNyuCHPhoy6Kn4",
+  authDomain: "pokequien-47bb5.firebaseapp.com",
+  databaseURL: "https://pokequien-47bb5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "pokequien-47bb5",
+  storageBucket: "pokequien-47bb5.firebasestorage.app",
+  messagingSenderId: "729200824482",
+  appId: "1:729200824482:web:c008ea0f2ab5bfdd1f47fb"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+/* ── Expose Firebase to global game logic ── */
+window._fb = { db, ref, set, get, update, onValue, off, remove, onDisconnect };
+window._fbReady = true;
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script>
+/* ════════════════════════════════════════
+   CONSTANTS & TYPE DATA
+════════════════════════════════════════ */
+const TYPE_COLOR={
+  fire:{bg:'#FF9741',text:'#fff'},water:{bg:'#3692DC',text:'#fff'},grass:{bg:'#38BF4B',text:'#fff'},
+  electric:{bg:'#FBD100',text:'#1A1A2E'},psychic:{bg:'#FF6675',text:'#fff'},bug:{bg:'#83C300',text:'#fff'},
+  flying:{bg:'#89AAE3',text:'#fff'},fighting:{bg:'#E0306A',text:'#fff'},ghost:{bg:'#4C6AB2',text:'#fff'},
+  poison:{bg:'#B567CE',text:'#fff'},dragon:{bg:'#006FC9',text:'#fff'},normal:{bg:'#919AA2',text:'#fff'},
+  ground:{bg:'#E87236',text:'#fff'},steel:{bg:'#5A8EA2',text:'#fff'},rock:{bg:'#C5B78C',text:'#1A1A2E'},
+  ice:{bg:'#70CBD4',text:'#fff'},dark:{bg:'#5B5466',text:'#fff'},fairy:{bg:'#FB89EB',text:'#fff'}
+};
+const TYPE_ES={
+  fire:'Fuego',water:'Agua',grass:'Planta',electric:'Eléctrico',psychic:'Psíquico',
+  bug:'Bicho',flying:'Volador',fighting:'Lucha',ghost:'Fantasma',poison:'Veneno',
+  dragon:'Dragón',normal:'Normal',ground:'Tierra',steel:'Acero',rock:'Roca',
+  ice:'Hielo',dark:'Siniestro',fairy:'Hada'
+};
+const ALL_TYPES=Object.keys(TYPE_COLOR);
+const GEN_RANGES=[[1,151],[152,251],[252,386],[387,493],[494,649],[650,721],[722,809],[810,905],[906,1025]];
+const GEN_NAMES=['Gen I','Gen II','Gen III','Gen IV','Gen V','Gen VI','Gen VII','Gen VIII','Gen IX'];
+const SHINY_RATE=0.01;
+
+/* ════════════════════════════════════════
+   POKÉBALL SVG
+════════════════════════════════════════ */
+function pbSVG(){return`<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="18" r="17" fill="#E3350D" stroke="#1A1A2E" stroke-width="2"/><path d="M1 18 A17 17 0 0 0 35 18 Z" fill="#FAFAFA"/><rect x="1" y="16.5" width="34" height="3" fill="#1A1A2E"/><circle cx="18" cy="18" r="5.5" fill="#1A1A2E"/><circle cx="18" cy="18" r="3.5" fill="#FAFAFA"/></svg>`;}
+
+/* ════════════════════════════════════════
+   AUDIO
+════════════════════════════════════════ */
+let audioCtx=null,musicGain=null,sfxGain=null,musicPlaying=false,musicNodes=[];
+function getCtx(){if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();musicGain=audioCtx.createGain();sfxGain=audioCtx.createGain();musicGain.connect(audioCtx.destination);sfxGain.connect(audioCtx.destination);musicGain.gain.value=0.4;sfxGain.gain.value=0.8;}return audioCtx;}
+function setMusicVol(v){getCtx();musicGain.gain.value=v/100;}
+function setSfxVol(v){getCtx();sfxGain.gain.value=v/100;}
+function startMusic(){if(musicPlaying)return;const ctx=getCtx();if(ctx.state==='suspended')ctx.resume();musicPlaying=true;loopMusic(ctx);}
+function stopMusic(){musicPlaying=false;musicNodes.forEach(n=>{try{n.stop();}catch(e){}});musicNodes=[];}
+function loopMusic(ctx){
+  if(!musicPlaying)return;
+  const BPM=100,BEAT=60/BPM;
+  const melody=[[523.25,1],[587.33,0.5],[523.25,0.5],[659.25,1],[587.33,2],[523.25,1],[587.33,0.5],[523.25,0.5],[493.88,1],[440,2],[440,1],[493.88,0.5],[523.25,0.5],[587.33,1],[523.25,0.5],[493.88,0.5],[440,1],[392,1],[440,0.5],[493.88,0.5],[523.25,1],[587.33,0.5],[659.25,0.5],[783.99,2],[783.99,0.5],[698.46,0.5],[659.25,1],[587.33,0.5],[523.25,0.5],[493.88,1],[440,1],[523.25,1],[587.33,0.5],[659.25,0.5],[783.99,2],[659.25,1],[587.33,0.5],[523.25,0.5],[493.88,1],[440,0.5],[392,0.5],[349.23,2]];
+  let t=ctx.currentTime+0.05;const totalDur=melody.reduce((a,n)=>a+n[1]*BEAT,0);musicNodes=[];
+  melody.forEach(([freq,beats])=>{const dur=beats*BEAT;const osc=ctx.createOscillator(),env=ctx.createGain();osc.type='triangle';osc.frequency.value=freq;osc.connect(env);env.connect(musicGain);env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(0.18,t+0.02);env.gain.linearRampToValueAtTime(0.12,t+dur*0.6);env.gain.linearRampToValueAtTime(0,t+dur-0.02);osc.start(t);osc.stop(t+dur);musicNodes.push(osc);t+=dur;});
+  const chords=[[261.63,329.63,392],[293.66,369.99,440],[246.94,311.13,392],[220,277.18,329.63]];
+  let ct=ctx.currentTime+0.05;chords.forEach(freqs=>{freqs.forEach(f=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(musicGain);g.gain.setValueAtTime(0.04,ct);g.gain.linearRampToValueAtTime(0,ct+totalDur/chords.length-0.1);o.start(ct);o.stop(ct+totalDur/chords.length);musicNodes.push(o);});ct+=totalDur/chords.length;});
+  setTimeout(()=>{if(musicPlaying){musicNodes=[];loopMusic(ctx);}},totalDur*1000+80);
+}
+function sfxFlip(){try{const ctx=getCtx();if(ctx.state==='suspended')ctx.resume();const buf=ctx.createBuffer(1,ctx.sampleRate*0.1,ctx.sampleRate);const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*0.4;const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=buf;src.connect(g);g.connect(sfxGain);src.start();}catch(e){}}
+function sfxSuccess(){try{const ctx=getCtx();if(ctx.state==='suspended')ctx.resume();[523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(sfxGain);const t=ctx.currentTime+i*0.1;g.gain.setValueAtTime(0.3,t);g.gain.linearRampToValueAtTime(0,t+0.3);o.start(t);o.stop(t+0.3);});}catch(e){}}
+function sfxShiny(){try{const ctx=getCtx();if(ctx.state==='suspended')ctx.resume();[1318.51,1567.98,1760,2093,1760,2093,2637.02].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(sfxGain);const t=ctx.currentTime+i*0.08;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.02);g.gain.linearRampToValueAtTime(0,t+0.12);o.start(t);o.stop(t+0.15);});}catch(e){}}
+
+/* ════════════════════════════════════════
+   POKÉDEX STORAGE
+════════════════════════════════════════ */
+function loadDex(){try{return JSON.parse(localStorage.getItem('pk_dex')||'{}');}catch(e){return {};}}
+function saveDex(dex){try{localStorage.setItem('pk_dex',JSON.stringify(dex));}catch(e){}}
+function registerPokemon(p,isShiny){const dex=loadDex();if(!dex[p.id]){dex[p.id]={id:p.id,name:p.name,types:p.types,gen:p.gen,sprite:p.sprite,shiny:isShiny,shinySprite:p.shinySprite};}else if(isShiny&&!dex[p.id].shiny){dex[p.id].shiny=true;dex[p.id].shinySprite=p.shinySprite;}saveDex(dex);}
+function updateMenuDexCount(){const dex=loadDex();document.getElementById('menu-dex-count').textContent=`${Object.keys(dex).length} / 1025 descubiertos`;}
+
+/* ════════════════════════════════════════
+   ONLINE MODE — FIREBASE
+════════════════════════════════════════ */
+let isOnline=false, isHost=false, myRole='', roomCode='', roomRef=null, roomListener=null, myName='';
+
+function randomCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('');}
+
+function waitForFB(cb){if(window._fbReady)cb();else window.addEventListener('fb-ready',cb,{once:true});}
+
+async function createRoom(){
+  const name=document.getElementById('online-name').value.trim()||'Jugador 1';
+  myName=name; isHost=true; myRole='host';
+  document.getElementById('online-error').textContent='';
+  waitForFB(async()=>{
+    const {db,ref,set,onDisconnect:od,remove}=window._fb;
+    roomCode=randomCode();
+    roomRef=ref(db,`rooms/${roomCode}`);
+    await set(roomRef,{
+      host:{name,ready:false,secret:null},
+      guest:null,
+      board:null,
+      shinyFlags:null,
+      diff:{mode:'normal',type:null,gen:null},
+      turn:'host',
+      state:'waiting',
+      actions:[],
+      createdAt: Date.now()
+    });
+    od(roomRef).remove();
+    document.getElementById('room-code-display').textContent=roomCode;
+    show('waiting-screen');
+    listenRoom();
+  });
+}
+
+async function joinRoom(){
+  const code=document.getElementById('join-code').value.trim().toUpperCase();
+  const name=document.getElementById('online-name').value.trim()||'Jugador 2';
+  document.getElementById('online-error').textContent='';
+  if(code.length!==4){document.getElementById('online-error').textContent='Introduce un código de 4 letras.';return;}
+  myName=name; isHost=false; myRole='guest';
+  waitForFB(async()=>{
+    const {db,ref,get,update,onDisconnect:od}=window._fb;
+    const snap=await get(ref(db,`rooms/${code}`));
+    if(!snap.exists()||snap.val().state!=='waiting'){
+      document.getElementById('online-error').textContent='Sala no encontrada o ya en curso.';return;
+    }
+    roomCode=code;
+    roomRef=ref(db,`rooms/${code}`);
+    await update(ref(db,`rooms/${code}/guest`),{name,ready:false,secret:null});
+    od(ref(db,`rooms/${code}/guest`)).remove();
+    show('waiting-screen');
+    document.getElementById('room-code-display').textContent=code;
+    listenRoom();
+  });
+}
+
+function listenRoom(){
+  const {onValue,ref,db}=window._fb;
+  if(roomListener)window._fb.off(roomRef,roomListener);
+  roomListener=onValue(roomRef,snap=>{
+    if(!snap.exists()){
+      if(isOnline)document.getElementById('rival-disconnected-modal').classList.add('visible');
+      return;
+    }
+    const data=snap.val();
+    handleRoomUpdate(data);
+  });
+}
+
+function handleRoomUpdate(data){
+  const state=data.state;
+  // Guest just joined → host sees guest, moves to difficulty
+  if(state==='waiting'&&isHost&&data.guest&&data.guest.name){
+    isOnline=true;
+    players[0]=myName; players[1]=data.guest.name;
+    showOnlineDifficultyScreen();
+  }
+  // Guest: host started loading → show loading
+  if(state==='loading'&&!isHost){
+    isOnline=true;
+    players[0]=data.host.name; players[1]=myName;
+    show('loading-screen');
+    document.getElementById('loading-text').textContent='El anfitrión está cargando el tablero…';
+  }
+  // Board ready → guest jumps straight to game (no selection needed)
+  if(state==='playing'&&data.board&&!document.getElementById('game-screen').classList.contains('active')){
+    boardPokemon=data.board;
+    shinyFlags=data.shinyFlags||boardPokemon.map(()=>false);
+    boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
+    secrets[0]=data.hostSecret;
+    secrets[1]=data.guestSecret;
+    boardStates=[boardPokemon.map(()=>true),boardPokemon.map(()=>true)];
+    const firstShiny=shinyFlags.indexOf(true);
+    if(firstShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[firstShiny]),400);
+    currentTurn=data.turn==='host'?0:1;
+    startMainGame();
+    return;
+  }
+  // Sync turn & board states when game is active
+  if(state==='playing'&&data.turn&&document.getElementById('game-screen').classList.contains('active')){
+    const myTurnRole=data.turn==='host'?0:1;
+    currentTurn=myTurnRole;
+    updateTurnBadge();
+    updateOnlineTurnUI();
+    // Sync rival's board flips
+    if(data.flipState){
+      const myKey=isHost?'host':'guest';
+      const myIdx=isHost?0:1;
+      if(data.flipState[myKey])boardStates[myIdx]=data.flipState[myKey];
+      renderBoard();
+    }
+    // Log actions
+    if(data.lastAction)addLog(data.lastAction);
+  }
+  // Game over
+  if(state==='gameover'&&data.winner){
+    const winnerRole=data.winner;
+    const winnerIdx=winnerRole==='host'?0:1;
+    sfxSuccess();showEndScreen(winnerIdx);
+  }
+}
+
+function showOnlineDifficultyScreen(){
+  selectedDiff=null;selectedType=null;selectedGen=null;
+  ['normal','type','gen'].forEach(m=>document.getElementById('diff-'+m).classList.remove('selected'));
+  document.getElementById('type-filter-wrap').style.display='none';
+  document.getElementById('gen-filter-wrap').style.display='none';
+  document.getElementById('start-btn').disabled=true;
+  document.getElementById('local-names-block').style.display='none';
+  document.getElementById('diff-mode-label').textContent=`Tú: ${players[0]} · Rival: ${players[1]}`;
+  initDiffUI();
+  show('difficulty-screen');
+}
+
+function updateOnlineTurnUI(){
+  const myIdx=isHost?0:1;
+  const isMyTurn=currentTurn===myIdx;
+  document.getElementById('yn-no-btn').disabled=!isMyTurn;
+  document.getElementById('yn-yes-btn').disabled=!isMyTurn;
+  document.getElementById('guess-btn').disabled=!isMyTurn;
+}
+
+async function pushOnlineEndTurn(){
+  if(!isOnline)return;
+  const {update,ref,db}=window._fb;
+  const nextTurn=currentTurn===0?'guest':'host';
+  const myKey=isHost?'host':'guest';
+  await update(ref(db,`rooms/${roomCode}`),{
+    turn:nextTurn,
+    [`flipState/${myKey}`]:boardStates[isHost?0:1],
+    lastAction:`${players[currentTurn]} pasó el turno`
+  });
+}
+
+async function pushOnlineGuess(correct,winnerIdx){
+  if(!isOnline)return;
+  const {update,ref,db}=window._fb;
+  if(correct){
+    await update(ref(db,`rooms/${roomCode}`),{state:'gameover',winner:isHost?'host':'guest'});
+  } else {
+    const nextTurn=currentTurn===0?'guest':'host';
+    await update(ref(db,`rooms/${roomCode}`),{turn:nextTurn,lastAction:`${players[currentTurn]} falló al adivinar`});
+  }
+}
+
+async function pushOnlineSecret(idx){
+  if(!isOnline)return;
+  const {update,ref,db}=window._fb;
+  const myKey=isHost?'host':'guest';
+  await update(ref(db,`rooms/${roomCode}/`+myKey),{secret:idx,ready:true});
+  // Check if both ready
+  const {get}=window._fb;
+  const snap=await get(ref(db,`rooms/${roomCode}`));
+  const d=snap.val();
+  if(d.host?.ready&&d.guest?.ready){
+    await update(ref(db,`rooms/${roomCode}`),{state:'playing',turn:'host'});
+  }
+}
+
+function addLog(msg){
+  const log=document.getElementById('action-log');
+  const entry=document.createElement('div');entry.className='action-entry';
+  entry.innerHTML=`<span>${msg}</span>`;
+  log.appendChild(entry);log.scrollTop=log.scrollHeight;
+}
+
+function leaveOnline(){
+  if(roomRef&&window._fb){
+    try{window._fb.remove(roomRef);}catch(e){}
+  }
+  isOnline=false;isHost=false;myRole='';roomCode='';roomRef=null;roomListener=null;
+  show('menu-screen');
+}
+
+/* ════════════════════════════════════════
+   DIFFICULTY UI
+════════════════════════════════════════ */
+let selectedDiff=null,selectedType=null,selectedGen=null;
+function initDiffUI(){
+  const tg=document.getElementById('type-filter-grid');tg.innerHTML='';
+  ALL_TYPES.forEach(t=>{const c=TYPE_COLOR[t];const chip=document.createElement('div');chip.className='type-chip';chip.textContent=TYPE_ES[t];chip.style.background=c.bg;chip.style.color=c.text;chip.onclick=()=>{tg.querySelectorAll('.type-chip').forEach(x=>x.classList.remove('active'));chip.classList.add('active');selectedType=t;checkStartBtn();};tg.appendChild(chip);});
+  const gg=document.getElementById('gen-filter-grid');gg.innerHTML='';
+  GEN_NAMES.forEach((name,i)=>{const chip=document.createElement('div');chip.className='gen-chip';chip.textContent=name;chip.onclick=()=>{gg.querySelectorAll('.gen-chip').forEach(x=>x.classList.remove('active'));chip.classList.add('active');selectedGen=i+1;checkStartBtn();};gg.appendChild(chip);});
+}
+function selectDiff(mode){selectedDiff=mode;selectedType=null;selectedGen=null;['normal','type','gen'].forEach(m=>document.getElementById('diff-'+m).classList.toggle('selected',m===mode));document.getElementById('type-filter-wrap').style.display=mode==='type'?'block':'none';document.getElementById('gen-filter-wrap').style.display=mode==='gen'?'block':'none';document.querySelectorAll('.type-chip').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.gen-chip').forEach(x=>x.classList.remove('active'));checkStartBtn();}
+function checkStartBtn(){let ok=(selectedDiff==='normal')||(selectedDiff==='type'&&selectedType)||(selectedDiff==='gen'&&selectedGen);document.getElementById('start-btn').disabled=!ok;}
+function goToDifficulty(){selectedDiff=null;selectedType=null;selectedGen=null;isOnline=false;['normal','type','gen'].forEach(m=>document.getElementById('diff-'+m).classList.remove('selected'));document.getElementById('type-filter-wrap').style.display='none';document.getElementById('gen-filter-wrap').style.display='none';document.getElementById('start-btn').disabled=true;document.getElementById('setup-error').textContent='';document.getElementById('local-names-block').style.display='block';document.getElementById('diff-mode-label').textContent='¿Cómo se elegirán los Pokémon?';initDiffUI();show('difficulty-screen');}
+function goToDiffBack(){if(isOnline)leaveOnline();else show('menu-screen');}
+
+/* ════════════════════════════════════════
+   GAME STATE
+════════════════════════════════════════ */
+let players=['Ash','Misty'],boardPokemon=[],secrets=[null,null];
+let selectionTurn=0,currentTurn=0,boardStates=[[],[]],guessTarget=null,shinyFlags=[];
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function spriteUrl(id){return`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;}
+function shinyUrl(id){return`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${id}.png`;}
+function getGen(id){for(let i=0;i<GEN_RANGES.length;i++){if(id>=GEN_RANGES[i][0]&&id<=GEN_RANGES[i][1])return i+1;}return 9;}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}}
+
+async function startGame(){
+  if(!isOnline){
+    players[0]=document.getElementById('p1-name').value.trim()||'Jugador 1';
+    players[1]=document.getElementById('p2-name').value.trim()||'Jugador 2';
+  }
+  document.getElementById('setup-error').textContent='';
+  show('loading-screen');startMusic();
+  try{
+    await loadPokemon();
+    shinyFlags=boardPokemon.map(()=>Math.random()<SHINY_RATE);
+    boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
+
+    if(isOnline&&isHost){
+      // Assign random secrets for both players automatically
+      const hostSecret=Math.floor(Math.random()*20);
+      let guestSecret=Math.floor(Math.random()*20);
+      while(guestSecret===hostSecret)guestSecret=Math.floor(Math.random()*20);
+      secrets[0]=hostSecret;secrets[1]=guestSecret;
+      // Push board + secrets to Firebase so both start directly
+      const {update,ref,db}=window._fb;
+      await update(ref(db,`rooms/${roomCode}`),{
+        board:boardPokemon,shinyFlags,
+        diff:{mode:selectedDiff,type:selectedType||null,gen:selectedGen||null},
+        hostSecret,guestSecret,
+        state:'playing',
+        turn:'host'
+      });
+      boardStates=[boardPokemon.map(()=>true),boardPokemon.map(()=>true)];
+      const firstShiny=shinyFlags.indexOf(true);
+      if(firstShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[firstShiny]),400);
+      startMainGame();
+      return;
+    }
+
+    selectionTurn=0;secrets=[null,null];
+    boardStates=[boardPokemon.map(()=>true),boardPokemon.map(()=>true)];
+    const firstShiny=shinyFlags.indexOf(true);
+    showSelectionScreen(firstShiny);
+  }catch(e){
+    show('difficulty-screen');
+    document.getElementById('setup-error').textContent='Error al cargar. Revisa tu conexión.';
+  }
+}
+
+async function loadPokemon(){
+  const BAD=/-mega|-gmax|-alola|-galar|-hisui|-paldea|-eternal|-primal|-origin|-sky|-therian|-black|-white|-complete|-dusk|-dawn|-midnight|-sensu|-papa|-pom|-noice|-busted|-hangry|-sandy|-trash|-heat|-wash|-frost|-fan|-mow/;
+  let pool=[];
+  if(selectedDiff==='normal'){const a=Array.from({length:1025},(_,i)=>i+1);shuffle(a);pool=a.slice(0,90);}
+  else if(selectedDiff==='gen'){const[lo,hi]=GEN_RANGES[selectedGen-1];const a=Array.from({length:hi-lo+1},(_,i)=>lo+i);shuffle(a);pool=a.slice(0,Math.min(90,a.length));}
+  else if(selectedDiff==='type'){const res=await fetch(`https://pokeapi.co/api/v2/type/${selectedType}`);const data=await res.json();const ids=data.pokemon.map(e=>{const p=e.pokemon.url.split('/').filter(Boolean);return parseInt(p[p.length-1]);}).filter(id=>id>=1&&id<=1025);shuffle(ids);pool=ids.slice(0,90);}
+  document.getElementById('loading-text').textContent='Cargando datos…';
+  const results=await Promise.allSettled(pool.map(id=>fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r=>r.ok?r.json():null)));
+  const fetched=results.filter(r=>r.status==='fulfilled'&&r.value).map(r=>r.value);
+  const clean=fetched.filter(p=>!BAD.test(p.name));
+  const seen=new Set(),unique=[];
+  for(const p of clean){const sid=p.species.url.split('/').filter(Boolean).pop();if(!seen.has(sid)&&unique.length<20){seen.add(sid);unique.push(p);}}
+  if(unique.length<20)throw new Error('Not enough');
+  boardPokemon=unique.slice(0,20).map(p=>({id:p.id,name:p.name.charAt(0).toUpperCase()+p.name.slice(1).replace(/-/g,' '),types:p.types.map(t=>t.type.name),sprite:p.sprites.front_default||spriteUrl(p.id),shinySprite:p.sprites.front_shiny||shinyUrl(p.id),gen:getGen(p.id),stats:{hp:p.stats[0].base_stat,weight:p.weight,height:p.height}}));
+}
+
+function typeBadgesHTML(types){return types.map(t=>{const c=TYPE_COLOR[t]||{bg:'#aaa',text:'#fff'};return`<span class="type-badge-colored" style="background:${c.bg};color:${c.text}">${TYPE_ES[t]||t}</span>`;}).join('');}
+
+/* ════════════════════════════════════════
+   SELECTION
+════════════════════════════════════════ */
+function showSelectionScreen(pendingShiny){
+  show('selection-screen');
+  // In online mode, each player sees only their own selection turn
+  const label=isOnline?`${myName}: elige tu Pokémon secreto`:`${players[selectionTurn]}: elige tu Pokémon secreto`;
+  document.getElementById('sel-player-name').textContent=label;
+  document.getElementById('confirm-sel').disabled=true;
+  const grid=document.getElementById('sel-grid');grid.innerHTML='';
+  boardPokemon.forEach((p,i)=>{
+    const isShiny=shinyFlags[i];
+    const card=document.createElement('div');card.className='poke-card'+(isShiny?' shiny-card':'');
+    card.innerHTML=`${isShiny?'<span style="position:absolute;top:2px;left:3px;font-size:9px;">✨</span>':''}<img class="poke-sprite" src="${isShiny?p.shinySprite:p.sprite}" alt="${p.name}"><div class="poke-name">${p.name}</div><div class="type-icons">${typeBadgesHTML(p.types)}</div>`;
+    card.onclick=()=>{document.querySelectorAll('#sel-grid .poke-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');secrets[isOnline?(isHost?0:1):selectionTurn]=i;document.getElementById('confirm-sel').disabled=false;};
+    grid.appendChild(card);
+  });
+  if(!isOnline&&selectionTurn===0&&pendingShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[pendingShiny]),400);
+  if(isOnline&&pendingShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[pendingShiny]),400);
+}
+
+async function confirmSelection(){
+  const myIdx=isOnline?(isHost?0:1):selectionTurn;
+  if(secrets[myIdx]===null)return;
+  if(isOnline){
+    await pushOnlineSecret(secrets[myIdx]);
+    document.getElementById('confirm-sel').disabled=true;
+    document.getElementById('sel-player-name').textContent='Esperando al rival…';
+  } else {
+    if(selectionTurn===0){selectionTurn=1;showSelectionScreen(-1);}
+    else startMainGame();
+  }
+}
+
+/* ════════════════════════════════════════
+   SHINY
+════════════════════════════════════════ */
+function showShinyModal(p){sfxShiny();document.getElementById('shiny-modal-sprite').src=p.shinySprite;document.getElementById('shiny-modal-name').textContent=`¡${p.name} shiny!`;document.getElementById('shiny-modal').classList.add('visible');}
+function closeShinyModal(){document.getElementById('shiny-modal').classList.remove('visible');}
+
+/* ════════════════════════════════════════
+   BOARD
+════════════════════════════════════════ */
+function startMainGame(){
+  currentTurn=0;
+  document.getElementById('online-status-bar').style.display=isOnline?'flex':'none';
+  document.getElementById('action-log').style.display=isOnline?'block':'none';
+  if(isOnline)document.getElementById('online-rival-name').textContent=`vs ${players[isHost?1:0]}`;
+  renderBoard();updateTurnBadge();
+  if(isOnline)updateOnlineTurnUI();
+  show('game-screen');
+}
+
+function renderBoard(){
+  const grid=document.getElementById('board-grid');grid.innerHTML='';
+  const myIdx=isOnline?(isHost?0:1):currentTurn;
+  boardPokemon.forEach((p,i)=>{
+    const isFlipped=!boardStates[myIdx][i],isShiny=shinyFlags[i];
+    const w=document.createElement('div');w.className='card-wrapper'+(isFlipped?' flipped':'');w.id='card-'+i;
+    w.innerHTML=`<div class="card-inner"><div class="card-front${isShiny?' shiny-front':''}">${isShiny?'<span class="shiny-star">✨</span>':''}<img class="board-sprite" src="${isShiny?p.shinySprite:p.sprite}" alt="${p.name}"><div class="board-name">${p.name}</div></div><div class="card-back"><div class="pb-svg-wrap">${pbSVG()}</div><div class="pb-card-name">${p.name}</div></div></div>`;
+    w.querySelector('.card-front').addEventListener('click',()=>toggleCard(i));
+    w.querySelector('.card-back').addEventListener('click',()=>toggleCard(i));
+    grid.appendChild(w);
+  });
+  updateRemaining();
+}
+
+function toggleCard(i){
+  const myIdx=isOnline?(isHost?0:1):currentTurn;
+  boardStates[myIdx][i]=!boardStates[myIdx][i];
+  const w=document.getElementById('card-'+i);if(w){w.classList.toggle('flipped');sfxFlip();}
+  updateRemaining();
+}
+
+function updateRemaining(){
+  const myIdx=isOnline?(isHost?0:1):currentTurn;
+  document.getElementById('remaining-count').textContent=boardStates[myIdx].filter(Boolean).length;
+}
+
+function updateTurnBadge(){
+  const b=document.getElementById('turn-badge');
+  b.textContent='Turno de '+players[currentTurn];
+  b.className='turn-pill '+(currentTurn===0?'turn-pill-p1':'turn-pill-p2');
+  const myIdx=isOnline?(isHost?0:1):currentTurn;
+  const isMyTurn=!isOnline||currentTurn===myIdx;
+  document.getElementById('yn-instruction').textContent=isMyTurn
+    ?`Haz tu pregunta en voz alta. ${players[1-currentTurn]} responde.`
+    :`Espera a que ${players[currentTurn]} haga su pregunta…`;
+}
+
+async function endTurn(){
+  if(isOnline)await pushOnlineEndTurn();
+  currentTurn=1-currentTurn;
+  if(!isOnline){renderBoard();updateTurnBadge();}
+}
+
+/* ════════════════════════════════════════
+   GUESS
+════════════════════════════════════════ */
+function openGuessModal(){
+  guessTarget=null;document.getElementById('gm-confirm').disabled=true;
+  document.getElementById('gm-title').textContent=`${players[currentTurn]}: ¿cuál es el Pokémon de ${players[1-currentTurn]}?`;
+  document.getElementById('gm-sub').textContent='Selecciona el Pokémon que crees que eligió tu rival';
+  const grid=document.getElementById('gm-grid');grid.innerHTML='';
+  boardPokemon.forEach((p,i)=>{const isShiny=shinyFlags[i];const card=document.createElement('div');card.className='poke-card'+(isShiny?' shiny-card':'');card.innerHTML=`${isShiny?'<span style="position:absolute;top:2px;left:3px;font-size:9px;">✨</span>':''}<img class="poke-sprite" src="${isShiny?p.shinySprite:p.sprite}" alt="${p.name}"><div class="poke-name">${p.name}</div>`;card.onclick=()=>{document.querySelectorAll('#gm-grid .poke-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');guessTarget=i;document.getElementById('gm-confirm').disabled=false;};grid.appendChild(card);});
+  document.getElementById('guess-modal').classList.add('visible');
+}
+function closeGuessModal(){document.getElementById('guess-modal').classList.remove('visible');}
+
+async function confirmGuess(){
+  if(guessTarget===null)return;
+  closeGuessModal();
+  const rivalIdx=isOnline?(isHost?1:0):1-currentTurn;
+  const correct=guessTarget===secrets[rivalIdx];
+  if(isOnline){
+    await pushOnlineGuess(correct,currentTurn);
+  } else {
+    if(correct){sfxSuccess();showEndScreen(currentTurn);}
+    else{document.getElementById('wrong-body').textContent=`No era ese Pokémon. Ahora es el turno de ${players[1-currentTurn]}.`;document.getElementById('wrong-modal').classList.add('visible');}
+  }
+}
+function closeWrongModal(){document.getElementById('wrong-modal').classList.remove('visible');endTurn();}
+
+/* ════════════════════════════════════════
+   END
+════════════════════════════════════════ */
+function showEndScreen(winner){
+  stopMusic();
+  const si=secrets[1-winner],p=boardPokemon[si],isShiny=shinyFlags[si];
+  document.getElementById('end-title').textContent=`¡${players[winner]} gana!`;
+  document.getElementById('end-player').textContent=`Adivinaste el Pokémon secreto de ${players[1-winner]}`;
+  document.getElementById('end-sprite').src=isShiny?p.shinySprite:p.sprite;
+  document.getElementById('end-sprite').alt=p.name;
+  document.getElementById('end-poke-name').textContent=isShiny?`✨ ${p.name} shiny`:p.name;
+  document.getElementById('end-poke-card').className='end-poke-card'+(isShiny?' shiny-end':'');
+  show('end-screen');
+}
+function onEndPlayAgain(){if(isOnline)leaveOnline();else goToDifficulty();}
+
+/* ════════════════════════════════════════
+   SETTINGS & POKÉDEX
+════════════════════════════════════════ */
+function openSettings(){document.getElementById('settings-modal').classList.add('visible');}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('visible');}
+
+let dexFilter='all';
+function openPokedex(){renderPokedex();show('pokedex-screen');}
+function setDexFilter(f,btn){dexFilter=f;document.querySelectorAll('.dex-filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPokedex();}
+function renderPokedex(){
+  const dex=loadDex(),all=Object.values(dex).sort((a,b)=>a.id-b.id);
+  document.getElementById('dex-count-badge').textContent=`${all.length} / 1025`;
+  let filtered=all;
+  if(dexFilter==='shiny')filtered=all.filter(p=>p.shiny);
+  else if(typeof dexFilter==='number'){const[lo,hi]=GEN_RANGES[dexFilter-1];filtered=all.filter(p=>p.id>=lo&&p.id<=hi);}
+  const wrap=document.getElementById('dex-grid-wrap');
+  if(filtered.length===0){wrap.innerHTML=`<div class="dex-empty"><div class="dex-empty-icon">${dexFilter==='shiny'?'✨':'🔍'}</div><div class="dex-empty-text">${dexFilter==='shiny'?'Aún no has encontrado ningún shiny':'Nada aquí todavía'}</div><div class="dex-empty-sub">¡Juega más partidas para descubrir Pokémon!</div></div>`;return;}
+  const grid=document.createElement('div');grid.className='dex-grid';
+  filtered.forEach(p=>{const card=document.createElement('div');card.className='dex-card'+(p.shiny?' shiny-dex':'');const spr=p.shiny&&p.shinySprite?p.shinySprite:p.sprite;card.innerHTML=`${p.shiny?'<span class="dex-shiny-star">✨</span>':''}<img class="dex-sprite" src="${spr}" alt="${p.name}"><div class="dex-name">${p.name}</div><div class="dex-num">#${String(p.id).padStart(3,'0')}</div>`;grid.appendChild(card);});
+  wrap.innerHTML='';wrap.appendChild(grid);
+}
+
+/* ── INIT ── */
+updateMenuDexCount();
+initDiffUI();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));
+}
+</script>
+</body>
+</html>
