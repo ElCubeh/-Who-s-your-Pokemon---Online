@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>¿Quién es Quién? Pokémon</title>
@@ -22,6 +22,50 @@
 html,body{height:100%;width:100%;overflow-x:hidden;}
 body{font-family:var(--fnt);background:#1A1A2E;min-height:100dvh;}
 #app{padding:0.75rem;max-width:480px;margin:0 auto;}
+
+/* ── RESPONSIVE ── */
+@media(min-width:600px){
+  #app{max-width:600px;padding:1rem;}
+  .pokemon-grid{grid-template-columns:repeat(5,1fr);}
+  .poke-sprite{width:60px;height:60px;}
+  .poke-name{font-size:10px;}
+  .board-grid{grid-template-columns:repeat(5,1fr);gap:6px;}
+  .card-wrapper{min-height:90px;}
+  .board-sprite{width:48px;height:48px;}
+  .board-name{font-size:9px;}
+  .menu-title{font-size:36px;}
+  .menu-btns{max-width:340px;}
+  .menu-btn{font-size:20px;padding:20px 28px;}
+  .menu-pokeball{width:88px;height:88px;}
+  .diff-name{font-size:16px;}
+  .yn-btn{font-size:22px;padding:16px 0;}
+  .pk-btn{font-size:17px;padding:15px;}
+  .secret-bar-sprite{width:44px;height:44px;}
+  .secret-bar-name{font-size:14px;}
+}
+@media(min-width:900px){
+  #app{max-width:860px;padding:1.25rem;}
+  .game-wrap{display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto;}
+  .game-topbar{grid-column:1/-1;}
+  .online-status-bar{grid-column:1/-1;}
+  .secret-bar{grid-column:1/-1;}
+  .board-section{border-right:2px solid var(--pk-gray2);border-bottom:none;}
+  .action-log{grid-column:2;border-top:none;border-left:none;}
+  .yn-area{border-left:none;}
+  .guess-area{border-left:none;}
+  .board-grid{grid-template-columns:repeat(5,1fr);gap:8px;}
+  .card-wrapper{min-height:110px;}
+  .board-sprite{width:58px;height:58px;}
+  .board-name{font-size:10px;}
+  .pokemon-grid{grid-template-columns:repeat(5,1fr);}
+  .poke-sprite{width:68px;height:68px;}
+  .dex-grid{grid-template-columns:repeat(6,1fr);}
+  .menu-title{font-size:42px;}
+  .menu-btns{max-width:380px;}
+  .diff-body{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;}
+  .diff-body .divider{grid-column:1/-1;}
+  #local-names-block{grid-column:1/-1;}
+}
 .screen{display:none;}.screen.active{display:block;}
 
 /* ── BUTTONS ── */
@@ -145,6 +189,15 @@ input[type=text]:focus{border-color:var(--pk-blue);}
 .poke-name{font-size:9px;font-weight:800;color:var(--pk-black);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .type-icons{display:flex;justify-content:center;gap:3px;margin-top:3px;flex-wrap:wrap;}
 .type-badge-colored{display:inline-flex;align-items:center;padding:2px 5px;border-radius:20px;font-size:7.5px;font-weight:900;}
+
+/* ── SECRET POKEMON BAR ── */
+.secret-bar{background:var(--pk-black);padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:2px solid #2a2a4a;}
+.secret-bar-label{font-size:9px;font-weight:900;color:rgba(255,255,255,0.4);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
+.secret-bar-card{display:flex;align-items:center;gap:8px;background:#2a2a4a;border-radius:8px;padding:5px 10px;flex:1;}
+.secret-bar-sprite{width:36px;height:36px;image-rendering:pixelated;flex-shrink:0;}
+.secret-bar-info{display:flex;flex-direction:column;gap:2px;}
+.secret-bar-name{font-size:12px;font-weight:900;color:#fff;}
+.secret-bar-types{display:flex;gap:3px;flex-wrap:wrap;}
 
 /* ── GAME ── */
 .game-wrap{background:var(--pk-gray);border:2.5px solid var(--pk-black);border-radius:var(--pk-radius);overflow:hidden;}
@@ -420,6 +473,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
     <div class="online-status-bar" id="online-status-bar" style="display:none;">
       <div class="online-status-pill"><span class="conn-dot"></span>Online</div>
       <div class="online-ping" id="online-rival-name">Rival conectado</div>
+    </div>
+    <!-- Secret Pokémon bar -->
+    <div class="secret-bar" id="secret-bar">
+      <div class="secret-bar-label">Tu secreto</div>
+      <div class="secret-bar-card" id="secret-bar-card">
+        <img class="secret-bar-sprite" id="secret-bar-sprite" src="" alt="">
+        <div class="secret-bar-info">
+          <div class="secret-bar-name" id="secret-bar-name"></div>
+          <div class="secret-bar-types" id="secret-bar-types"></div>
+        </div>
+      </div>
     </div>
     <div class="board-section">
       <div class="section-label">Toca para descartar · toca de nuevo para restaurar</div>
@@ -954,7 +1018,7 @@ async function confirmSelection(){
     document.getElementById('sel-player-name').textContent='Esperando al rival…';
   } else {
     if(selectionTurn===0){selectionTurn=1;showSelectionScreen(-1);}
-    else startMainGame();
+    else { startMainGame(); } // startMainGame already calls renderSecretBar(0)
   }
 }
 
@@ -972,9 +1036,25 @@ function startMainGame(){
   document.getElementById('online-status-bar').style.display=isOnline?'flex':'none';
   document.getElementById('action-log').style.display=isOnline?'block':'none';
   if(isOnline)document.getElementById('online-rival-name').textContent=`vs ${players[isHost?1:0]}`;
+
+  // In online: show my own secret. In local: show current player's secret
+  const myIdx=isOnline?(isHost?0:1):0;
+  renderSecretBar(myIdx);
+
   renderBoard();updateTurnBadge();
   if(isOnline)updateOnlineTurnUI();
   show('game-screen');
+}
+
+function renderSecretBar(playerIdx){
+  const secretIdx=secrets[playerIdx];
+  if(secretIdx===null||secretIdx===undefined)return;
+  const p=boardPokemon[secretIdx];
+  const isShiny=shinyFlags[secretIdx];
+  document.getElementById('secret-bar-sprite').src=isShiny?p.shinySprite:p.sprite;
+  document.getElementById('secret-bar-name').textContent=(isShiny?'✨ ':'')+p.name;
+  document.getElementById('secret-bar-types').innerHTML=typeBadgesHTML(p.types);
+  if(isShiny)document.getElementById('secret-bar-card').style.background='linear-gradient(135deg,#3a3010,#4a4010)';
 }
 
 function renderBoard(){
@@ -983,7 +1063,7 @@ function renderBoard(){
   boardPokemon.forEach((p,i)=>{
     const isFlipped=!boardStates[myIdx][i],isShiny=shinyFlags[i];
     const w=document.createElement('div');w.className='card-wrapper'+(isFlipped?' flipped':'');w.id='card-'+i;
-    w.innerHTML=`<div class="card-inner"><div class="card-front${isShiny?' shiny-front':''}">${isShiny?'<span class="shiny-star">✨</span>':''}<img class="board-sprite" src="${isShiny?p.shinySprite:p.sprite}" alt="${p.name}"><div class="board-name">${p.name}</div></div><div class="card-back"><div class="pb-svg-wrap">${pbSVG()}</div><div class="pb-card-name">${p.name}</div></div></div>`;
+    w.innerHTML=`<div class="card-inner"><div class="card-front${isShiny?' shiny-front':''}">${isShiny?'<span class="shiny-star">✨</span>':''}<img class="board-sprite" src="${isShiny?p.shinySprite:p.sprite}" alt="${p.name}"><div class="board-name">${p.name}</div><div style="display:flex;justify-content:center;gap:2px;flex-wrap:wrap;margin-top:1px;">${p.types.map(t=>{const c=TYPE_COLOR[t]||{bg:'#aaa',text:'#fff'};return`<span style="background:${c.bg};color:${c.text};font-size:6px;font-weight:900;padding:1px 4px;border-radius:6px;">${TYPE_ES[t]||t}</span>`;}).join('')}</div></div><div class="card-back"><div class="pb-svg-wrap">${pbSVG()}</div><div class="pb-card-name">${p.name}</div></div></div>`;
     w.querySelector('.card-front').addEventListener('click',()=>toggleCard(i));
     w.querySelector('.card-back').addEventListener('click',()=>toggleCard(i));
     grid.appendChild(w);
@@ -1017,7 +1097,10 @@ function updateTurnBadge(){
 async function endTurn(){
   if(isOnline)await pushOnlineEndTurn();
   currentTurn=1-currentTurn;
-  if(!isOnline){renderBoard();updateTurnBadge();}
+  if(!isOnline){
+    renderSecretBar(currentTurn); // show the new current player's secret
+    renderBoard();updateTurnBadge();
+  }
 }
 
 /* ════════════════════════════════════════
