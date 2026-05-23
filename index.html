@@ -248,14 +248,19 @@ input[type=text]:focus{border-color:var(--pk-blue);}
 
 /* SÍ/NO */
 .yn-area{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;}
-.yn-label{font-size:10px;font-weight:900;color:var(--pk-gray2);letter-spacing:0.08em;text-transform:uppercase;text-align:center;}
 .yn-instruction{font-size:12px;font-weight:800;color:var(--pk-black);text-align:center;padding:8px 10px;background:var(--pk-white);border-radius:8px;border:2px solid var(--pk-gray2);line-height:1.5;}
-.yn-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.yn-btn{padding:14px 0;font-family:var(--fnt);font-size:18px;font-weight:900;border:none;border-radius:var(--pk-radius-sm);cursor:pointer;box-shadow:var(--pk-shadow);transition:transform 0.1s;-webkit-tap-highlight-color:transparent;}
-.yn-btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.18);}
-.yn-no{background:#C8C8D8;color:var(--pk-black);}
-.yn-yes{background:var(--pk-green);color:#fff;}
-.yn-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.yn-btn.yn-end{
+  width:100%;padding:16px;
+  font-family:var(--fnt);font-size:17px;font-weight:900;
+  background:var(--pk-blue);color:#fff;
+  border:none;border-radius:var(--pk-radius-sm);
+  cursor:pointer;box-shadow:var(--pk-shadow);
+  letter-spacing:0.02em;
+  transition:transform 0.1s,filter 0.1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.yn-btn.yn-end:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.18);}
+.yn-btn.yn-end:disabled{background:var(--pk-gray2);color:#aaa;box-shadow:none;cursor:not-allowed;transform:none;}
 .guess-area{padding:6px 10px 12px;}
 .guess-divider{height:2px;background:var(--pk-gray2);border-radius:2px;margin-bottom:10px;}
 
@@ -523,12 +528,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
       <div class="board-grid" id="board-grid"></div>
     </div>
     <div class="yn-area">
-      <div class="yn-label">Respuesta del rival</div>
       <div class="yn-instruction" id="yn-instruction">Haz tu pregunta en voz alta</div>
-      <div class="yn-btns">
-        <button class="yn-btn yn-no" id="yn-no-btn" onclick="endTurn()">✕ No</button>
-        <button class="yn-btn yn-yes" id="yn-yes-btn" onclick="endTurn()">✓ Sí</button>
-      </div>
+      <button class="yn-btn yn-end" id="yn-no-btn" onclick="endTurn()" style="display:none;">Finalizar turno →</button>
+      <button class="yn-btn yn-end" id="yn-yes-btn" onclick="endTurn()">Finalizar turno →</button>
     </div>
     <!-- Online action log -->
     <div class="action-log" id="action-log" style="display:none;"></div>
@@ -738,33 +740,37 @@ function registerPokemon(p,isShiny){const dex=loadDex();if(!dex[p.id]){dex[p.id]
 function updateMenuDexCount(){const dex=loadDex();document.getElementById('menu-dex-count').textContent=`${Object.keys(dex).length} / 1025 descubiertos`;}
 
 /* ════════════════════════════════════════
-   ONLINE MODE — FIREBASE
+   ONLINE MODE — REWRITE LIMPIO
+   Flujo:
+   HOST: crea sala → espera guest → elige dificultad → carga pokémon
+         → asigna secrets distintos → sube todo a Firebase → startMainGame()
+   GUEST: entra sala → espera que Firebase ponga state=playing
+          → lee hostSecret/guestSecret → startMainGame()
+   EN JUEGO: cada cambio de turno → Firebase actualiza "turn"
+             → listener lo detecta → updateOnlineTurnUI()
+             → jugador en espera ve pantalla con su pokemon grande
+             → jugador activo ve el tablero
 ════════════════════════════════════════ */
-let isOnline=false, isHost=false, myRole='', roomCode='', roomRef=null, roomListener=null, myName='';
+let isOnline=false,isHost=false,roomCode='',roomRef=null,myName='';
 
-function randomCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('');}
-
+function randomCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4},()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
 function waitForFB(cb){if(window._fbReady)cb();else window.addEventListener('fb-ready',cb,{once:true});}
 
+/* ── CREAR SALA ── */
 async function createRoom(){
   const name=document.getElementById('online-name').value.trim()||'Jugador 1';
-  myName=name; isHost=true; myRole='host';
+  myName=name; isHost=true;
   document.getElementById('online-error').textContent='';
   waitForFB(async()=>{
-    const {db,ref,set,onDisconnect:od,remove}=window._fb;
+    const {db,ref,set,onDisconnect:od}=window._fb;
     roomCode=randomCode();
     roomRef=ref(db,`rooms/${roomCode}`);
-    await set(roomRef,{
-      host:{name,ready:false,secret:null},
-      guest:null,
-      board:null,
-      shinyFlags:null,
-      diff:{mode:'normal',type:null,gen:null},
-      turn:'host',
-      state:'waiting',
-      actions:[],
-      createdAt: Date.now()
-    });
+    await set(roomRef,{state:'waiting',hostName:name,guestName:null,
+      board:null,shinyFlags:null,hostSecret:null,guestSecret:null,
+      turn:null,createdAt:Date.now()});
     od(roomRef).remove();
     document.getElementById('room-code-display').textContent=roomCode;
     show('waiting-screen');
@@ -772,12 +778,13 @@ async function createRoom(){
   });
 }
 
+/* ── UNIRSE A SALA ── */
 async function joinRoom(){
   const code=document.getElementById('join-code').value.trim().toUpperCase();
   const name=document.getElementById('online-name').value.trim()||'Jugador 2';
   document.getElementById('online-error').textContent='';
   if(code.length!==4){document.getElementById('online-error').textContent='Introduce un código de 4 letras.';return;}
-  myName=name; isHost=false; myRole='guest';
+  myName=name; isHost=false;
   waitForFB(async()=>{
     const {db,ref,get,update,onDisconnect:od}=window._fb;
     const snap=await get(ref(db,`rooms/${code}`));
@@ -786,108 +793,87 @@ async function joinRoom(){
     }
     roomCode=code;
     roomRef=ref(db,`rooms/${code}`);
-    await update(ref(db,`rooms/${code}/guest`),{name,ready:false,secret:null});
-    od(ref(db,`rooms/${code}/guest`)).remove();
-    show('waiting-screen');
+    await update(roomRef,{guestName:name});
+    od(ref(db,`rooms/${code}/guestName`)).set(null);
     document.getElementById('room-code-display').textContent=code;
+    show('waiting-screen');
     listenRoom();
   });
 }
 
+/* ── LISTENER PRINCIPAL ── */
 function listenRoom(){
-  const {onValue,ref,db}=window._fb;
-  if(roomListener)window._fb.off(roomRef,roomListener);
-  roomListener=onValue(roomRef,snap=>{
+  const {onValue}=window._fb;
+  onValue(roomRef,snap=>{
     if(!snap.exists()){
-      if(isOnline)document.getElementById('rival-disconnected-modal').classList.add('visible');
+      if(isOnline){document.getElementById('rival-disconnected-modal').classList.add('visible');}
       return;
     }
-    const data=snap.val();
-    handleRoomUpdate(data);
+    const d=snap.val();
+
+    /* Host ve que llegó el guest → va a dificultad */
+    if(isHost&&d.state==='waiting'&&d.guestName&&!isOnline){
+      isOnline=true;
+      players[0]=myName; players[1]=d.guestName;
+      showOnlineDifficultyScreen();
+    }
+
+    /* Guest ve que el tablero está listo → arranca juego */
+    if(!isHost&&d.state==='playing'&&d.board&&!document.getElementById('game-screen').classList.contains('active')){
+      isOnline=true;
+      players[0]=d.hostName; players[1]=myName;
+      boardPokemon=d.board;
+      shinyFlags=d.shinyFlags||d.board.map(()=>false);
+      boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
+      // Guest secret = guestSecret, host secret = hostSecret
+      secrets[0]=d.hostSecret;   // host's pokemon (index 0)
+      secrets[1]=d.guestSecret;  // guest's pokemon (index 1)
+      boardStates=[d.board.map(()=>true),d.board.map(()=>true)];
+      currentTurn=d.turn==='host'?0:1;
+      startMainGame();
+      return;
+    }
+
+    /* Sync de turno mientras el juego está activo */
+    if(d.state==='playing'&&d.turn&&document.getElementById('game-screen').classList.contains('active')){
+      currentTurn=d.turn==='host'?0:1;
+      // Sync flip states del rival
+      if(d.flipState){
+        const myKey=isHost?'host':'guest';
+        const myIdx=isHost?0:1;
+        if(d.flipState[myKey]){
+          boardStates[myIdx]=d.flipState[myKey].map(v=>!!v);
+        }
+      }
+      updateTurnBadge();
+      updateOnlineTurnUI();
+      renderBoard();
+    }
+
+    /* Game over */
+    if(d.state==='gameover'&&d.winner){
+      const winnerIdx=d.winner==='host'?0:1;
+      if(!document.getElementById('end-screen').classList.contains('active')){
+        sfxSuccess();showEndScreen(winnerIdx);
+      }
+    }
   });
 }
 
-function handleRoomUpdate(data){
-  const state=data.state;
-  // Guest just joined → host sees guest, moves to difficulty
-  if(state==='waiting'&&isHost&&data.guest&&data.guest.name){
-    isOnline=true;
-    players[0]=myName; players[1]=data.guest.name;
-    showOnlineDifficultyScreen();
-  }
-  // Guest: host started loading → show loading
-  if(state==='loading'&&!isHost){
-    isOnline=true;
-    players[0]=data.host.name; players[1]=myName;
-    show('loading-screen');
-    document.getElementById('loading-text').textContent='El anfitrión está cargando el tablero…';
-  }
-  // Board ready → guest jumps straight to game (no selection needed)
-  if(state==='playing'&&data.board&&!document.getElementById('game-screen').classList.contains('active')){
-    boardPokemon=data.board;
-    shinyFlags=data.shinyFlags||boardPokemon.map(()=>false);
-    boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
-    secrets[0]=data.hostSecret;
-    secrets[1]=data.guestSecret;
-    boardStates=[boardPokemon.map(()=>true),boardPokemon.map(()=>true)];
-    const firstShiny=shinyFlags.indexOf(true);
-    if(firstShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[firstShiny]),400);
-    currentTurn=data.turn==='host'?0:1;
-    startMainGame();
-    return;
-  }
-  // Sync turn & board states when game is active
-  if(state==='playing'&&data.turn&&document.getElementById('game-screen').classList.contains('active')){
-    const newTurn=data.turn==='host'?0:1;
-    const turnChanged=newTurn!==currentTurn;
-    currentTurn=newTurn;
-    updateTurnBadge();
-    updateOnlineTurnUI(); // always show/hide overlay based on whose turn it is
-    // Sync rival's board flips
-    if(data.flipState){
-      const myKey=isHost?'host':'guest';
-      const myIdx=isHost?0:1;
-      if(data.flipState[myKey])boardStates[myIdx]=data.flipState[myKey];
-    }
-    renderBoard(); // always re-render
-    // Log actions
-    if(data.lastAction&&turnChanged)addLog(data.lastAction);
-  }
-  // Game over
-  if(state==='gameover'&&data.winner){
-    const winnerRole=data.winner;
-    const winnerIdx=winnerRole==='host'?0:1;
-    sfxSuccess();showEndScreen(winnerIdx);
-  }
-}
-
-function showOnlineDifficultyScreen(){
-  selectedDiff=null;selectedType=null;selectedGen=null;
-  ['normal','type','gen'].forEach(m=>document.getElementById('diff-'+m).classList.remove('selected'));
-  document.getElementById('type-filter-wrap').style.display='none';
-  document.getElementById('gen-filter-wrap').style.display='none';
-  document.getElementById('start-btn').disabled=true;
-  document.getElementById('local-names-block').style.display='none';
-  document.getElementById('diff-mode-label').textContent=`Tú: ${players[0]} · Rival: ${players[1]}`;
-  initDiffUI();
-  show('difficulty-screen');
-}
-
+/* ── PANTALLA DE ESPERA (overlay en juego) ── */
 function updateOnlineTurnUI(){
   const myIdx=isHost?0:1;
   const isMyTurn=currentTurn===myIdx;
   const overlay=document.getElementById('online-waiting-overlay');
-
   if(isMyTurn){
-    // My turn: hide overlay, enable buttons
     overlay.classList.remove('visible');
     document.getElementById('yn-no-btn').disabled=false;
     document.getElementById('yn-yes-btn').disabled=false;
     document.getElementById('guess-btn').disabled=false;
   } else {
-    // Rival's turn: show overlay with my secret pokemon big
+    // Mostrar mi pokemon secreto grande mientras espero
     const mySecretIdx=secrets[myIdx];
-    if(mySecretIdx!==null&&mySecretIdx!==undefined){
+    if(mySecretIdx!==null&&mySecretIdx!==undefined&&boardPokemon[mySecretIdx]){
       const p=boardPokemon[mySecretIdx];
       const isShiny=shinyFlags[mySecretIdx];
       document.getElementById('owo-sprite').src=isShiny?p.shinySprite:p.sprite;
@@ -902,57 +888,52 @@ function updateOnlineTurnUI(){
   }
 }
 
+/* ── PASAR TURNO ── */
 async function pushOnlineEndTurn(){
-  if(!isOnline)return;
-  const {update,ref,db}=window._fb;
+  const {update}=window._fb;
   const nextTurn=currentTurn===0?'guest':'host';
   const myKey=isHost?'host':'guest';
   const myIdx=isHost?0:1;
-  await update(ref(db,`rooms/${roomCode}`),{
-    turn:nextTurn,
-    [`flipState/${myKey}`]:boardStates[myIdx],
-    lastAction:`${players[currentTurn]} pasó el turno`
-  });
+  const flipData=boardStates[myIdx].map(v=>v===true);
+  await update(roomRef,{turn:nextTurn,[`flipState/${myKey}`]:flipData});
 }
 
-async function pushOnlineGuess(correct,winnerIdx){
-  if(!isOnline)return;
-  const {update,ref,db}=window._fb;
+/* ── ADIVINAR ── */
+async function pushOnlineGuess(correct){
+  const {update}=window._fb;
   if(correct){
-    await update(ref(db,`rooms/${roomCode}`),{state:'gameover',winner:isHost?'host':'guest'});
+    await update(roomRef,{state:'gameover',winner:isHost?'host':'guest'});
   } else {
     const nextTurn=currentTurn===0?'guest':'host';
-    await update(ref(db,`rooms/${roomCode}`),{turn:nextTurn,lastAction:`${players[currentTurn]} falló al adivinar`});
+    await update(roomRef,{turn:nextTurn});
   }
 }
 
-async function pushOnlineSecret(idx){
-  if(!isOnline)return;
-  const {update,ref,db}=window._fb;
-  const myKey=isHost?'host':'guest';
-  await update(ref(db,`rooms/${roomCode}/`+myKey),{secret:idx,ready:true});
-  // Check if both ready
-  const {get}=window._fb;
-  const snap=await get(ref(db,`rooms/${roomCode}`));
-  const d=snap.val();
-  if(d.host?.ready&&d.guest?.ready){
-    await update(ref(db,`rooms/${roomCode}`),{state:'playing',turn:'host'});
-  }
+/* ── SALIR ── */
+function leaveOnline(){
+  if(roomRef&&window._fb){try{window._fb.remove(roomRef);}catch(e){}}
+  isOnline=false;isHost=false;roomCode='';roomRef=null;
+  show('menu-screen');
+}
+
+function showOnlineDifficultyScreen(){
+  selectedDiff=null;selectedType=null;selectedGen=null;
+  ['normal','type','gen'].forEach(m=>document.getElementById('diff-'+m).classList.remove('selected'));
+  document.getElementById('type-filter-wrap').style.display='none';
+  document.getElementById('gen-filter-wrap').style.display='none';
+  document.getElementById('start-btn').disabled=true;
+  document.getElementById('local-names-block').style.display='none';
+  document.getElementById('diff-mode-label').textContent=`Tú: ${players[0]} · Rival: ${players[1]}`;
+  initDiffUI();
+  show('difficulty-screen');
 }
 
 function addLog(msg){
   const log=document.getElementById('action-log');
-  const entry=document.createElement('div');entry.className='action-entry';
-  entry.innerHTML=`<span>${msg}</span>`;
-  log.appendChild(entry);log.scrollTop=log.scrollHeight;
-}
-
-function leaveOnline(){
-  if(roomRef&&window._fb){
-    try{window._fb.remove(roomRef);}catch(e){}
-  }
-  isOnline=false;isHost=false;myRole='';roomCode='';roomRef=null;roomListener=null;
-  show('menu-screen');
+  if(!log)return;
+  const e=document.createElement('div');e.className='action-entry';
+  e.innerHTML=`<span>${msg}</span>`;
+  log.appendChild(e);log.scrollTop=log.scrollHeight;
 }
 
 /* ════════════════════════════════════════
@@ -1067,17 +1048,10 @@ function showSelectionScreen(pendingShiny){
   if(isOnline&&pendingShiny>=0)setTimeout(()=>showShinyModal(boardPokemon[pendingShiny]),400);
 }
 
-async function confirmSelection(){
-  const myIdx=isOnline?(isHost?0:1):selectionTurn;
-  if(secrets[myIdx]===null)return;
-  if(isOnline){
-    await pushOnlineSecret(secrets[myIdx]);
-    document.getElementById('confirm-sel').disabled=true;
-    document.getElementById('sel-player-name').textContent='Esperando al rival…';
-  } else {
-    if(selectionTurn===0){selectionTurn=1;showSelectionScreen(-1);}
-    else { startMainGame(); } // startMainGame already calls renderSecretBar(0)
-  }
+function confirmSelection(){
+  if(secrets[selectionTurn]===null)return;
+  if(selectionTurn===0){selectionTurn=1;showSelectionScreen(-1);}
+  else{startMainGame();}
 }
 
 /* ════════════════════════════════════════
@@ -1180,7 +1154,7 @@ async function confirmGuess(){
   const rivalIdx=isOnline?(isHost?1:0):1-currentTurn;
   const correct=guessTarget===secrets[rivalIdx];
   if(isOnline){
-    await pushOnlineGuess(correct,currentTurn);
+    await pushOnlineGuess(correct);
   } else {
     if(correct){sfxSuccess();showEndScreen(currentTurn);}
     else{document.getElementById('wrong-body').textContent=`No era ese Pokémon. Ahora es el turno de ${players[1-currentTurn]}.`;document.getElementById('wrong-modal').classList.add('visible');}
