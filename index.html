@@ -647,7 +647,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
       <div class="end-poke-name" id="end-poke-name"></div>
     </div>
     <div class="end-btns">
-      <button class="pk-btn pk-btn-red" style="width:auto;padding:13px 32px;" onclick="onEndPlayAgain()">Jugar de nuevo</button>
+      <button class="pk-btn pk-btn-red" id="rematch-btn" style="width:auto;padding:13px 32px;" onclick="onEndPlayAgain()">Jugar de nuevo</button>
+      <div id="rematch-waiting" style="display:none;font-size:13px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:4px;">Esperando al rival… ⏳</div>
       <button class="pk-btn pk-btn-dark" style="width:auto;padding:11px 24px;" onclick="show('menu-screen');updateMenuDexCount()">Menú principal</button>
     </div>
   </div>
@@ -811,6 +812,18 @@ function listenRoom(){
     }
     const d=snap.val();
 
+/* ── LISTENER PRINCIPAL ── */
+let _unsubRoom=null;
+function listenRoom(){
+  if(_unsubRoom){_unsubRoom();_unsubRoom=null;} // desuscribir anterior
+  const {onValue}=window._fb;
+  _unsubRoom=onValue(roomRef,snap=>{
+    if(!snap.exists()){
+      if(isOnline){document.getElementById('rival-disconnected-modal').classList.add('visible');}
+      return;
+    }
+    const d=snap.val();
+
     /* Host ve que llegó el guest → va a dificultad */
     if(isHost&&d.state==='waiting'&&d.guestName&&!isOnline){
       isOnline=true;
@@ -825,25 +838,42 @@ function listenRoom(){
       boardPokemon=d.board;
       shinyFlags=d.shinyFlags||d.board.map(()=>false);
       boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
-      // Guest secret = guestSecret, host secret = hostSecret
-      secrets[0]=d.hostSecret;   // host's pokemon (index 0)
-      secrets[1]=d.guestSecret;  // guest's pokemon (index 1)
+      secrets[0]=d.hostSecret;
+      secrets[1]=d.guestSecret;
       boardStates=[d.board.map(()=>true),d.board.map(()=>true)];
       currentTurn=d.turn==='host'?0:1;
       startMainGame();
       return;
     }
 
-    /* Sync de turno mientras el juego está activo */
+    /* Revancha: host reinicia → guest recibe nuevo estado playing */
+    if(d.state==='playing'&&d.board&&document.getElementById('end-screen').classList.contains('active')){
+      boardPokemon=d.board;
+      shinyFlags=d.shinyFlags||d.board.map(()=>false);
+      boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
+      secrets[0]=d.hostSecret;
+      secrets[1]=d.guestSecret;
+      boardStates=[d.board.map(()=>true),d.board.map(()=>true)];
+      currentTurn=d.turn==='host'?0:1;
+      document.getElementById('rematch-waiting').style.display='none';
+      startMainGame();
+      return;
+    }
+
+    /* Rival quiere revancha → mostrar aviso */
+    if(d.state==='rematch'&&document.getElementById('end-screen').classList.contains('active')){
+      document.getElementById('rematch-waiting').style.display='block';
+      // Si soy host, arranco automáticamente la nueva partida
+      if(isHost) startRematch();
+    }
+
+    /* Sync de turno en juego activo */
     if(d.state==='playing'&&d.turn&&document.getElementById('game-screen').classList.contains('active')){
       currentTurn=d.turn==='host'?0:1;
-      // Sync flip states del rival
       if(d.flipState){
         const myKey=isHost?'host':'guest';
         const myIdx=isHost?0:1;
-        if(d.flipState[myKey]){
-          boardStates[myIdx]=d.flipState[myKey].map(v=>!!v);
-        }
+        if(d.flipState[myKey])boardStates[myIdx]=d.flipState[myKey].map(v=>!!v);
       }
       updateTurnBadge();
       updateOnlineTurnUI();
@@ -858,6 +888,47 @@ function listenRoom(){
       }
     }
   });
+}
+
+/* ── REVANCHA ── */
+async function requestRematch(){
+  // Guest pide revancha → Firebase state=rematch → host lo ve y arranca
+  // Host pide revancha → arranca directamente
+  if(isHost){
+    await startRematch();
+  } else {
+    const {update}=window._fb;
+    await update(roomRef,{state:'rematch'});
+    document.getElementById('rematch-waiting').style.display='block';
+    document.getElementById('rematch-btn').disabled=true;
+  }
+}
+
+async function startRematch(){
+  // Solo el host carga el nuevo tablero
+  if(!isHost)return;
+  show('loading-screen');
+  startMusic();
+  try{
+    await loadPokemon();
+    shinyFlags=boardPokemon.map(()=>Math.random()<SHINY_RATE);
+    boardPokemon.forEach((p,i)=>registerPokemon(p,shinyFlags[i]));
+    const hostSecret=Math.floor(Math.random()*20);
+    let guestSecret=Math.floor(Math.random()*20);
+    while(guestSecret===hostSecret)guestSecret=Math.floor(Math.random()*20);
+    secrets[0]=hostSecret; secrets[1]=guestSecret;
+    const firstTurn=Math.random()<0.5?'host':'guest';
+    const {update}=window._fb;
+    await update(roomRef,{
+      board:boardPokemon,shinyFlags,
+      hostSecret,guestSecret,
+      state:'playing',turn:firstTurn,
+      flipState:null,winner:null
+    });
+    boardStates=[boardPokemon.map(()=>true),boardPokemon.map(()=>true)];
+    currentTurn=firstTurn==='host'?0:1;
+    startMainGame();
+  }catch(e){show('end-screen');}
 }
 
 /* ── PANTALLA DE ESPERA (overlay en juego) ── */
@@ -911,6 +982,7 @@ async function pushOnlineGuess(correct){
 
 /* ── SALIR ── */
 function leaveOnline(){
+  if(_unsubRoom){_unsubRoom();_unsubRoom=null;}
   if(roomRef&&window._fb){try{window._fb.remove(roomRef);}catch(e){}}
   isOnline=false;isHost=false;roomCode='';roomRef=null;
   show('menu-screen');
@@ -1012,9 +1084,9 @@ async function startGame(){
 async function loadPokemon(){
   const BAD=/-mega|-gmax|-alola|-galar|-hisui|-paldea|-eternal|-primal|-origin|-sky|-therian|-black|-white|-complete|-dusk|-dawn|-midnight|-sensu|-papa|-pom|-noice|-busted|-hangry|-sandy|-trash|-heat|-wash|-frost|-fan|-mow/;
   let pool=[];
-  if(selectedDiff==='normal'){const a=Array.from({length:1025},(_,i)=>i+1);shuffle(a);pool=a.slice(0,90);}
-  else if(selectedDiff==='gen'){const[lo,hi]=GEN_RANGES[selectedGen-1];const a=Array.from({length:hi-lo+1},(_,i)=>lo+i);shuffle(a);pool=a.slice(0,Math.min(90,a.length));}
-  else if(selectedDiff==='type'){const res=await fetch(`https://pokeapi.co/api/v2/type/${selectedType}`);const data=await res.json();const ids=data.pokemon.map(e=>{const p=e.pokemon.url.split('/').filter(Boolean);return parseInt(p[p.length-1]);}).filter(id=>id>=1&&id<=1025);shuffle(ids);pool=ids.slice(0,90);}
+  if(selectedDiff==='normal'){const a=Array.from({length:1025},(_,i)=>i+1);shuffle(a);pool=a.slice(0,40);}
+  else if(selectedDiff==='gen'){const[lo,hi]=GEN_RANGES[selectedGen-1];const a=Array.from({length:hi-lo+1},(_,i)=>lo+i);shuffle(a);pool=a.slice(0,Math.min(40,a.length));}
+  else if(selectedDiff==='type'){const res=await fetch(`https://pokeapi.co/api/v2/type/${selectedType}`);const data=await res.json();const ids=data.pokemon.map(e=>{const p=e.pokemon.url.split('/').filter(Boolean);return parseInt(p[p.length-1]);}).filter(id=>id>=1&&id<=1025);shuffle(ids);pool=ids.slice(0,40);}
   document.getElementById('loading-text').textContent='Cargando datos…';
   const results=await Promise.allSettled(pool.map(id=>fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r=>r.ok?r.json():null)));
   const fetched=results.filter(r=>r.status==='fulfilled'&&r.value).map(r=>r.value);
@@ -1174,9 +1246,17 @@ function showEndScreen(winner){
   document.getElementById('end-sprite').alt=p.name;
   document.getElementById('end-poke-name').textContent=isShiny?`✨ ${p.name} shiny`:p.name;
   document.getElementById('end-poke-card').className='end-poke-card'+(isShiny?' shiny-end':'');
+  document.getElementById('rematch-btn').disabled=false;
+  document.getElementById('rematch-waiting').style.display='none';
   show('end-screen');
 }
-function onEndPlayAgain(){if(isOnline)leaveOnline();else goToDifficulty();}
+function onEndPlayAgain(){
+  if(isOnline){
+    requestRematch();
+  } else {
+    goToDifficulty();
+  }
+}
 
 /* ════════════════════════════════════════
    SETTINGS & POKÉDEX
